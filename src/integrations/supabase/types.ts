@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          created_at: string
+          data_vencimento: string | null
+          email: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          plano: string | null
+          status: Database["public"]["Enums"]["cliente_status"]
+          updated_at: string
+          user_id: string
+          valor: number
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_vencimento?: string | null
+          email?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          plano?: string | null
+          status?: Database["public"]["Enums"]["cliente_status"]
+          updated_at?: string
+          user_id?: string
+          valor?: number
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_vencimento?: string | null
+          email?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          plano?: string | null
+          status?: Database["public"]["Enums"]["cliente_status"]
+          updated_at?: string
+          user_id?: string
+          valor?: number
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +67,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      cliente_status: "ativo" | "vencido" | "suspenso"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +194,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      cliente_status: ["ativo", "vencido", "suspenso"],
+    },
   },
 } as const
