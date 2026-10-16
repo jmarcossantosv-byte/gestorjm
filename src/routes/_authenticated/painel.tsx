@@ -263,13 +263,13 @@ function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenCha
       status: (f.get("status") as Status) || "ativo",
       observacoes: String(f.get("observacoes") || "") || null,
     };
-    if (!payload.nome) return toast.error("Informe o nome");
+    if (!payload.nome) { toast.error("Informe o nome"); return; }
     setSaving(true);
     const { error } = cliente
       ? await supabase.from("clientes").update(payload).eq("id", cliente.id)
       : await supabase.from("clientes").insert(payload);
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(cliente ? "Cliente atualizado" : "Cliente adicionado");
     qc.invalidateQueries({ queryKey: ["clientes"] });
     onOpenChange(false);
