@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Tv, LogOut, Plus, Search, Pencil, Trash2, Users, CheckCircle2, AlertCircle, Clock, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -248,7 +248,6 @@ function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Users; labe
 function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenChange: (o: boolean) => void; cliente: Cliente | null }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<Status>("ativo");
   const key = `${cliente?.id ?? "novo"}-${open}`;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -292,9 +291,8 @@ function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenCha
           <Field label="Valor (R$)"><Input name="valor" inputMode="decimal" placeholder="0,00" defaultValue={cliente ? String(cliente.valor).replace(".", ",") : ""} /></Field>
           <Field label="Vencimento"><Input name="data_vencimento" type="date" defaultValue={cliente?.data_vencimento ?? ""} /></Field>
           <Field label="Status">
-            <input type="hidden" name="status" value={status} />
-            <Select defaultValue={cliente?.status ?? "ativo"} onValueChange={(v) => setStatus(v as Status)} key={key}>
-              <SelectTrigger ref={() => setStatusIfNeeded()}><SelectValue /></SelectTrigger>
+            <Select name="status" defaultValue={cliente?.status ?? "ativo"}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ativo">Ativo</SelectItem>
                 <SelectItem value="vencido">Vencido</SelectItem>
@@ -314,13 +312,9 @@ function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenCha
     </Dialog>
   );
 
-  function setStatusIfNeeded() {
-    const s = cliente?.status ?? "ativo";
-    if (s !== status && !statusTouched.current) setStatus(s);
-  }
 }
 
-function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={`space-y-1.5 ${className}`}>
       <Label>{label}</Label>
