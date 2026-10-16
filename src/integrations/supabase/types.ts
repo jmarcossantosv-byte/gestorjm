@@ -23,6 +23,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           plano: string | null
+          plano_id: string | null
           status: Database["public"]["Enums"]["cliente_status"]
           updated_at: string
           user_id: string
@@ -37,6 +38,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           plano?: string | null
+          plano_id?: string | null
           status?: Database["public"]["Enums"]["cliente_status"]
           updated_at?: string
           user_id?: string
@@ -51,11 +53,94 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           plano?: string | null
+          plano_id?: string | null
           status?: Database["public"]["Enums"]["cliente_status"]
           updated_at?: string
           user_id?: string
           valor?: number
           whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "planos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagamentos: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          data_pagamento: string
+          forma: Database["public"]["Enums"]["forma_pagamento"]
+          id: string
+          observacao: string | null
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          data_pagamento?: string
+          forma?: Database["public"]["Enums"]["forma_pagamento"]
+          id?: string
+          observacao?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          data_pagamento?: string
+          forma?: Database["public"]["Enums"]["forma_pagamento"]
+          id?: string
+          observacao?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planos: {
+        Row: {
+          created_at: string
+          duracao_dias: number
+          id: string
+          nome: string
+          numero_telas: number
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          duracao_dias?: number
+          id?: string
+          nome: string
+          numero_telas?: number
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          duracao_dias?: number
+          id?: string
+          nome?: string
+          numero_telas?: number
+          updated_at?: string
+          user_id?: string
+          valor?: number
         }
         Relationships: []
       }
@@ -64,10 +149,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      registrar_pagamento: {
+        Args: {
+          _cliente_id: string
+          _data_pagamento: string
+          _forma: Database["public"]["Enums"]["forma_pagamento"]
+          _observacao: string
+          _valor: number
+        }
+        Returns: string
+      }
     }
     Enums: {
       cliente_status: "ativo" | "vencido" | "suspenso"
+      forma_pagamento: "pix" | "dinheiro" | "cartao" | "outro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -196,6 +291,7 @@ export const Constants = {
   public: {
     Enums: {
       cliente_status: ["ativo", "vencido", "suspenso"],
+      forma_pagamento: ["pix", "dinheiro", "cartao", "outro"],
     },
   },
 } as const
