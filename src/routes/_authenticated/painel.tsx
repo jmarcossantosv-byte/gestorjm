@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AppHeader, CobrarButton, PagamentoDialog, type Plano } from "@/components/painel-shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { Tv, LogOut, Plus, Search, Pencil, Trash2, Users, CheckCircle2, AlertCircle, Clock, Phone, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Plus, Search, Pencil, Trash2, Users, CheckCircle2, AlertCircle, Clock, Phone, Loader2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -53,13 +54,22 @@ const addDays = (iso: string, n: number) => {
 };
 
 function Painel() {
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todos" | Status>("todos");
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Cliente | null>(null);
+  const [pagando, setPagando] = useState<Cliente | null>(null);
+  const { data: planos = [] } = useQuery({
+    queryKey: ["planos"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("planos").select("*").order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+  const nomePlano = (c: Cliente) => planos.find((p) => p.id === c.plano_id)?.nome ?? c.plano ?? "Sem plano";
 
   const { data: clientes = [], isLoading } = useQuery({
     queryKey: ["clientes"],
@@ -102,28 +112,9 @@ function Painel() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function sair() {
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  }
-
   return (
     <div className="min-h-screen pb-24">
-      <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
-            <div className="bg-brand flex h-9 w-9 items-center justify-center rounded-xl text-primary-foreground">
-              <Tv className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-extrabold tracking-tight">Painel IPTV</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={sair}>
-            <LogOut /> Sair
-          </Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -168,8 +159,8 @@ function Painel() {
                 <li key={c.id} className="rounded-2xl border bg-card p-4 shadow-soft">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-bold">{c.nome}</p>
-                      <p className="truncate text-sm text-muted-foreground">{c.plano || "Sem plano"} · {brl(Number(c.valor))}</p>
+                      <Link to="/clientes/$id" params={{ id: c.id }} className="block truncate font-bold hover:underline">{c.nome}</Link>
+                      <p className="truncate text-sm text-muted-foreground">{nomePlano(c)} · {brl(Number(c.valor))}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_CLASS[c.status]}`}>
                       {STATUS_LABEL[c.status]}
@@ -184,7 +175,11 @@ function Painel() {
                     )}
                   </div>
                   {c.observacoes && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{c.observacoes}</p>}
-                  <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                  <div className="mt-3 flex flex-wrap justify-end gap-2 border-t pt-3">
+                    <CobrarButton cliente={c} />
+                    <Button size="sm" onClick={() => setPagando(c)}>
+                      <Wallet /> Registrar pagamento
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => { setEditing(c); setFormOpen(true); }}>
                       <Pencil /> Editar
                     </Button>
@@ -208,7 +203,8 @@ function Painel() {
         <Plus className="!h-6 !w-6" />
       </Button>
 
-      <ClienteForm open={formOpen} onOpenChange={setFormOpen} cliente={editing} />
+      <ClienteForm open={formOpen} onOpenChange={setFormOpen} cliente={editing} planos={planos} />
+      <PagamentoDialog cliente={pagando} onOpenChange={(o) => !o && setPagando(null)} />
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>
@@ -245,10 +241,22 @@ function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Users; labe
   );
 }
 
-function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenChange: (o: boolean) => void; cliente: Cliente | null }) {
+function ClienteForm({ open, onOpenChange, cliente, planos }: { open: boolean; onOpenChange: (o: boolean) => void; cliente: Cliente | null; planos: Plano[] }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
   const key = `${cliente?.id ?? "novo"}-${open}`;
+  const [planoId, setPlanoId] = useState<string>("");
+  const [valor, setValor] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    setPlanoId(cliente?.plano_id ?? "");
+    setValor(cliente ? String(cliente.valor).replace(".", ",") : "");
+  }, [open, cliente]);
+  function escolherPlano(id: string) {
+    setPlanoId(id);
+    const p = planos.find((x) => x.id === id);
+    if (p) setValor(String(p.valor).replace(".", ","));
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -257,7 +265,8 @@ function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenCha
       nome: String(f.get("nome")).trim(),
       whatsapp: String(f.get("whatsapp") || "") || null,
       email: String(f.get("email") || "") || null,
-      plano: String(f.get("plano") || "") || null,
+      plano_id: planoId || null,
+      plano: planos.find((p) => p.id === planoId)?.nome ?? null,
       valor: Number(String(f.get("valor") || "0").replace(",", ".")) || 0,
       data_vencimento: String(f.get("data_vencimento") || "") || null,
       status: (f.get("status") as Status) || "ativo",
@@ -287,8 +296,15 @@ function ClienteForm({ open, onOpenChange, cliente }: { open: boolean; onOpenCha
           </Field>
           <Field label="WhatsApp"><Input name="whatsapp" type="tel" placeholder="(11) 99999-9999" defaultValue={cliente?.whatsapp ?? ""} /></Field>
           <Field label="E-mail"><Input name="email" type="email" defaultValue={cliente?.email ?? ""} /></Field>
-          <Field label="Plano"><Input name="plano" placeholder="Ex.: Mensal" defaultValue={cliente?.plano ?? ""} /></Field>
-          <Field label="Valor (R$)"><Input name="valor" inputMode="decimal" placeholder="0,00" defaultValue={cliente ? String(cliente.valor).replace(".", ",") : ""} /></Field>
+          <Field label="Plano">
+            <Select value={planoId} onValueChange={escolherPlano}>
+              <SelectTrigger><SelectValue placeholder={planos.length ? "Selecione" : "Cadastre um plano"} /></SelectTrigger>
+              <SelectContent>
+                {planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome} — {p.duracao_dias} dias</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Valor (R$)"><Input name="valor" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} /></Field>
           <Field label="Vencimento"><Input name="data_vencimento" type="date" defaultValue={cliente?.data_vencimento ?? ""} /></Field>
           <Field label="Status">
             <Select name="status" defaultValue={cliente?.status ?? "ativo"}>
