@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedCobrancaRouteImport } from './routes/_authenticated/cobranca'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated/planos'
 import { Route as AuthenticatedClientesIdRouteImport } from './routes/_authenticated/clientes.$id'
@@ -29,6 +30,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedCobrancaRoute = AuthenticatedCobrancaRouteImport.update({
+  id: '/cobranca',
+  path: '/cobranca',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
   id: '/painel',
@@ -49,6 +55,7 @@ const AuthenticatedClientesIdRoute = AuthenticatedClientesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/cobranca': typeof AuthenticatedCobrancaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/clientes/$id': typeof AuthenticatedClientesIdRoute
@@ -56,6 +63,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/cobranca': typeof AuthenticatedCobrancaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/clientes/$id': typeof AuthenticatedClientesIdRoute
@@ -65,20 +73,23 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/cobranca': typeof AuthenticatedCobrancaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/clientes/$id': typeof AuthenticatedClientesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/painel' | '/planos' | '/clientes/$id'
+  fullPaths:
+    '/' | '/auth' | '/cobranca' | '/painel' | '/planos' | '/clientes/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/painel' | '/planos' | '/clientes/$id'
+  to: '/' | '/auth' | '/cobranca' | '/painel' | '/planos' | '/clientes/$id'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/cobranca'
     | '/_authenticated/painel'
     | '/_authenticated/planos'
     | '/_authenticated/clientes/$id'
@@ -113,6 +124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/cobranca': {
+      id: '/_authenticated/cobranca'
+      path: '/cobranca'
+      fullPath: '/cobranca'
+      preLoaderRoute: typeof AuthenticatedCobrancaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel': {
       id: '/_authenticated/painel'
       path: '/painel'
@@ -138,12 +156,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCobrancaRoute: typeof AuthenticatedCobrancaRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedPlanosRoute: typeof AuthenticatedPlanosRoute
   AuthenticatedClientesIdRoute: typeof AuthenticatedClientesIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCobrancaRoute: AuthenticatedCobrancaRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedPlanosRoute: AuthenticatedPlanosRoute,
   AuthenticatedClientesIdRoute: AuthenticatedClientesIdRoute,
