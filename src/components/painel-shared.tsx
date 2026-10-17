@@ -84,6 +84,7 @@ export function AppHeader() {
         <nav className="flex items-center gap-1">
           <Link to="/painel" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Clientes</Link>
           <Link to="/planos" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Planos</Link>
+          <Link to="/cobranca" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Cobrança</Link>
           <Button variant="ghost" size="sm" onClick={sair}><LogOut /> <span className="hidden sm:inline">Sair</span></Button>
         </nav>
       </div>
