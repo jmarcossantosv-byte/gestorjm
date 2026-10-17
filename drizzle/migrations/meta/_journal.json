@@ -15,6 +15,13 @@
       "when": 1792112718742,
       "tag": "0001_planos_pagamentos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792197421068,
+      "tag": "0002_fix_renovacao_vencido",
+      "breakpoints": true
     }
   ]
 }

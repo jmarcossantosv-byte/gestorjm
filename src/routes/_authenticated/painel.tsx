@@ -169,7 +169,7 @@ function Painel() {
                   <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>Vence: <strong className="text-foreground">{fmtDate(c.data_vencimento)}</strong></span>
                     {c.whatsapp && (
-                      <a href={`https://wa.me/${c.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                      <a href={`https://wa.me/${((n) => (n.length <= 11 ? `55${n}` : n))(c.whatsapp.replace(/\D/g, ""))}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                         <Phone className="h-3.5 w-3.5" />{c.whatsapp}
                       </a>
                     )}
