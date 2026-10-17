@@ -22,6 +22,13 @@
       "when": 1792197421068,
       "tag": "0002_fix_renovacao_vencido",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792198030624,
+      "tag": "0003_cobranca_automatica",
+      "breakpoints": true
     }
   ]
 }

@@ -14,12 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      avisos_enviados: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          data: string
+          id: string
+          mensagem: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          data?: string
+          id?: string
+          mensagem: string
+          status?: string
+          user_id?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          data?: string
+          id?: string
+          mensagem?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_enviados_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           created_at: string
           data_vencimento: string | null
           email: string | null
           id: string
+          nao_enviar_avisos: boolean
           nome: string
           observacoes: string | null
           plano: string | null
@@ -35,6 +74,7 @@ export type Database = {
           data_vencimento?: string | null
           email?: string | null
           id?: string
+          nao_enviar_avisos?: boolean
           nome: string
           observacoes?: string | null
           plano?: string | null
@@ -50,6 +90,7 @@ export type Database = {
           data_vencimento?: string | null
           email?: string | null
           id?: string
+          nao_enviar_avisos?: boolean
           nome?: string
           observacoes?: string | null
           plano?: string | null
@@ -69,6 +110,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cobranca_config: {
+        Row: {
+          ativo: boolean
+          avisar_no_dia: boolean
+          avisar_vencidos: boolean
+          dias_antes: number
+          mensagem: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          avisar_no_dia?: boolean
+          avisar_vencidos?: boolean
+          dias_antes?: number
+          mensagem?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          ativo?: boolean
+          avisar_no_dia?: boolean
+          avisar_vencidos?: boolean
+          dias_antes?: number
+          mensagem?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       pagamentos: {
         Row: {
