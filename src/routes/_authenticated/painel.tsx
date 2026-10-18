@@ -271,6 +271,7 @@ function ClienteForm({ open, onOpenChange, cliente, planos }: { open: boolean; o
       data_vencimento: String(f.get("data_vencimento") || "") || null,
       status: (f.get("status") as Status) || "ativo",
       observacoes: String(f.get("observacoes") || "") || null,
+      nao_enviar_avisos: f.get("nao_enviar_avisos") === "on",
     };
     if (!payload.nome) { toast.error("Informe o nome"); return; }
     setSaving(true);
@@ -319,6 +320,10 @@ function ClienteForm({ open, onOpenChange, cliente, planos }: { open: boolean; o
           <Field label="Observações" className="sm:col-span-2">
             <Textarea name="observacoes" rows={3} defaultValue={cliente?.observacoes ?? ""} />
           </Field>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" name="nao_enviar_avisos" defaultChecked={cliente?.nao_enviar_avisos ?? false} className="h-4 w-4" />
+            Não enviar avisos (cliente pediu SAIR)
+          </label>
           <DialogFooter className="gap-2 sm:col-span-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving && <Loader2 className="animate-spin" />}Salvar</Button>
