@@ -52,6 +52,48 @@ export type Database = {
           },
         ]
       }
+      brand_settings: {
+        Row: {
+          contato: string
+          cor_principal: string
+          cor_secundaria: string
+          instagram: string
+          logo_path: string | null
+          nome: string
+          rodape: string
+          site: string
+          updated_at: string
+          user_id: string
+          visual_personalizado: boolean
+        }
+        Insert: {
+          contato?: string
+          cor_principal?: string
+          cor_secundaria?: string
+          instagram?: string
+          logo_path?: string | null
+          nome?: string
+          rodape?: string
+          site?: string
+          updated_at?: string
+          user_id?: string
+          visual_personalizado?: boolean
+        }
+        Update: {
+          contato?: string
+          cor_principal?: string
+          cor_secundaria?: string
+          instagram?: string
+          logo_path?: string | null
+          nome?: string
+          rodape?: string
+          site?: string
+          updated_at?: string
+          user_id?: string
+          visual_personalizado?: boolean
+        }
+        Relationships: []
+      }
       clientes: {
         Row: {
           created_at: string

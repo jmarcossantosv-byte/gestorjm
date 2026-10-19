@@ -29,6 +29,13 @@
       "when": 1792198030624,
       "tag": "0003_cobranca_automatica",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792439049775,
+      "tag": "0004_brand_settings",
+      "breakpoints": true
     }
   ]
 }
