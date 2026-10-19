@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Tv, LogOut, Loader2, MessageCircle } from "lucide-react";
+import { Tv, LogOut, Image as ImageIcon, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -85,6 +85,7 @@ export function AppHeader() {
           <Link to="/painel" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Clientes</Link>
           <Link to="/planos" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Planos</Link>
           <Link to="/cobranca" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Cobrança</Link>
+          <Link to="/banner" title="Gerador de Banner" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}><ImageIcon className="inline h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Gerador de Banner</span></Link>
           <Button variant="ghost" size="sm" onClick={sair}><LogOut /> <span className="hidden sm:inline">Sair</span></Button>
         </nav>
       </div>

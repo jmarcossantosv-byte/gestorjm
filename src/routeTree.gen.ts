@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedBannerRouteImport } from './routes/_authenticated/banner'
 import { Route as AuthenticatedCobrancaRouteImport } from './routes/_authenticated/cobranca'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated/planos'
@@ -30,6 +31,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBannerRoute = AuthenticatedBannerRouteImport.update({
+  id: '/banner',
+  path: '/banner',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCobrancaRoute = AuthenticatedCobrancaRouteImport.update({
   id: '/cobranca',
@@ -55,6 +61,7 @@ const AuthenticatedClientesIdRoute = AuthenticatedClientesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/banner': typeof AuthenticatedBannerRoute
   '/cobranca': typeof AuthenticatedCobrancaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/planos': typeof AuthenticatedPlanosRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/banner': typeof AuthenticatedBannerRoute
   '/cobranca': typeof AuthenticatedCobrancaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/planos': typeof AuthenticatedPlanosRoute
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/banner': typeof AuthenticatedBannerRoute
   '/_authenticated/cobranca': typeof AuthenticatedCobrancaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
@@ -81,14 +90,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/cobranca' | '/painel' | '/planos' | '/clientes/$id'
+    | '/'
+    | '/auth'
+    | '/banner'
+    | '/cobranca'
+    | '/painel'
+    | '/planos'
+    | '/clientes/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/cobranca' | '/painel' | '/planos' | '/clientes/$id'
+  to:
+    | '/'
+    | '/auth'
+    | '/banner'
+    | '/cobranca'
+    | '/painel'
+    | '/planos'
+    | '/clientes/$id'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/banner'
     | '/_authenticated/cobranca'
     | '/_authenticated/painel'
     | '/_authenticated/planos'
@@ -124,6 +147,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/banner': {
+      id: '/_authenticated/banner'
+      path: '/banner'
+      fullPath: '/banner'
+      preLoaderRoute: typeof AuthenticatedBannerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/cobranca': {
       id: '/_authenticated/cobranca'
       path: '/cobranca'
@@ -156,6 +186,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBannerRoute: typeof AuthenticatedBannerRoute
   AuthenticatedCobrancaRoute: typeof AuthenticatedCobrancaRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedPlanosRoute: typeof AuthenticatedPlanosRoute
@@ -163,6 +194,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBannerRoute: AuthenticatedBannerRoute,
   AuthenticatedCobrancaRoute: AuthenticatedCobrancaRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedPlanosRoute: AuthenticatedPlanosRoute,
