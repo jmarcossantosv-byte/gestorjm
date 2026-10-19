@@ -21,8 +21,8 @@ export const Route = createFileRoute("/_authenticated/banner")({
   component: Banner,
 });
 
-type Jogo = { id: string; campeonato: string; casa: string; visitante: string; horario: string; canal: string; escudoCasa?: string; escudoVisitante?: string };
-type Config = { titulo: string; logo?: string; fundo?: string; cor: string; rodape: string };
+type Jogo = { id: string; campeonato: string; casa: string; visitante: string; horario: string; canal: string; escudoCasa?: string | undefined; escudoVisitante?: string | undefined };
+type Config = { titulo: string; logo?: string | undefined; fundo?: string | undefined; cor: string; rodape: string };
 
 const FORMATOS = {
   story: { label: "Story/Status", w: 1080, h: 1920 },
@@ -218,7 +218,7 @@ function Banner() {
 
   function duplicarOntem() {
     const ontem = load<Jogo[]>(jogosKey(addDays(data, -1)), []);
-    if (!ontem.length) return toast.error("Nenhuma lista salva para ontem.");
+    if (!ontem.length) { toast.error("Nenhuma lista salva para ontem."); return; }
     salvarJogos(ontem.map((j) => ({ ...j, id: crypto.randomUUID() })));
     toast.success("Lista de ontem copiada.");
   }
@@ -249,13 +249,13 @@ function Banner() {
 
   function salvarJogo() {
     if (!edit) return;
-    if (!edit.casa || !edit.visitante) return toast.error("Preencha os dois times.");
+    if (!edit.casa || !edit.visitante) { toast.error("Preencha os dois times."); return; }
     if (edit.id) salvarJogos(jogos.map((j) => (j.id === edit.id ? edit : j)));
     else salvarJogos([...jogos, { ...edit, id: crypto.randomUUID() }]);
     setEdit(null);
   }
 
-  const ImgField = ({ label, value, onChange, max }: { label: string; value?: string; onChange: (v?: string) => void; max: number }) => (
+  const ImgField = ({ label, value, onChange, max }: { label: string; value?: string | undefined; onChange: (v?: string) => void; max: number }) => (
     <Field label={label}>
       <div className="flex items-center gap-2">
         {value && <img src={value} alt="" className="h-10 w-10 rounded-md border object-contain" />}
