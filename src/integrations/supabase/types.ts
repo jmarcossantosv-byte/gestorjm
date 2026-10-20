@@ -183,6 +183,48 @@ export type Database = {
         }
         Relationships: []
       }
+      football_cache: {
+        Row: {
+          cache_key: string
+          fetched_at: string
+          resultado: Json
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          fetched_at?: string
+          resultado?: Json
+          user_id?: string
+        }
+        Update: {
+          cache_key?: string
+          fetched_at?: string
+          resultado?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      football_teams: {
+        Row: {
+          escudo: string | null
+          nome: string
+          team_id: number
+          user_id: string
+        }
+        Insert: {
+          escudo?: string | null
+          nome: string
+          team_id: number
+          user_id?: string
+        }
+        Update: {
+          escudo?: string | null
+          nome?: string
+          team_id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       pagamentos: {
         Row: {
           cliente_id: string
