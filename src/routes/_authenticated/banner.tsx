@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AppHeader, Field, addDays, fmtDate, todayISO } from "@/components/painel-shared";
+import { BannerFootball } from "@/components/banner-football";
+import { mergeGames, type FootballGame } from "@/lib/football";
 
 export const Route = createFileRoute("/_authenticated/banner")({
   head: () => ({
@@ -21,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/banner")({
   component: Banner,
 });
 
-type Jogo = { id: string; campeonato: string; casa: string; visitante: string; horario: string; canal: string; escudoCasa?: string | undefined; escudoVisitante?: string | undefined };
+type Jogo = { id: string; fixtureId?: number; campeonato: string; casa: string; visitante: string; horario: string; canal: string; escudoCasa?: string | undefined; escudoVisitante?: string | undefined };
 type Config = { titulo: string; logo?: string | undefined; fundo?: string | undefined; cor: string; rodape: string };
 
 const FORMATOS = {
@@ -50,7 +52,9 @@ function lerImagem(file: File, max: number): Promise<string> {
         const s = Math.min(1, max / Math.max(img.width, img.height));
         const c = document.createElement("canvas");
         c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-        c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+        const ctx = c.getContext("2d");
+        if (!ctx) { rej(new Error("Canvas indisponível")); return; }
+        ctx.drawImage(img, 0, 0, c.width, c.height);
         res(file.type === "image/jpeg" ? c.toDataURL("image/jpeg", 0.85) : c.toDataURL("image/png"));
       };
       img.onerror = rej;
@@ -74,7 +78,8 @@ function fit(ctx: CanvasRenderingContext2D, text: string, maxW: number, size: nu
 async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, cfg: Config, jogos: Jogo[]) {
   const { w, h } = FORMATOS[fmt];
   canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
   const [fundo, logo, ...escudos] = await Promise.all([
     carregar(cfg.fundo), carregar(cfg.logo),
     ...jogos.flatMap((j) => [carregar(j.escudoCasa), carregar(j.escudoVisitante)]),
@@ -211,7 +216,7 @@ function Banner() {
     document.fonts?.ready.then(() => desenhar(c, fmt, data, cfg, jogos)).then(() => {
       const t = canvasRef.current;
       if (!ativo || !t) return;
-      t.width = c.width; t.height = c.height; t.getContext("2d")!.drawImage(c, 0, 0);
+      t.width = c.width; t.height = c.height; t.getContext("2d")?.drawImage(c, 0, 0);
     });
     return () => { ativo = false; };
   }, [fmt, data, cfg, jogos]);
@@ -221,6 +226,15 @@ function Banner() {
     if (!ontem.length) { toast.error("Nenhuma lista salva para ontem."); return; }
     salvarJogos(ontem.map((j) => ({ ...j, id: crypto.randomUUID() })));
     toast.success("Lista de ontem copiada.");
+  }
+
+  function importarJogos(incoming: FootballGame[], selectedDate: string) {
+    const previous = selectedDate === data ? jogos : load<Jogo[]>(jogosKey(selectedDate), []);
+    const merged = mergeGames<Jogo>(previous, incoming.map((game) => ({ ...game, id: crypto.randomUUID() })));
+    save(jogosKey(selectedDate), merged.games);
+    if (selectedDate === data) setJogos(merged.games);
+    if (merged.omitted) toast.warning(`O banner comporta 10 jogos. ${merged.omitted} jogo(s) não foram incluídos.`);
+    else toast.success("Jogos carregados.");
   }
 
   function baixar() {
@@ -273,6 +287,7 @@ function Banner() {
         <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Gerador de Banner</h1>
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="space-y-4">
+            <BannerFootball date={data} onGames={importarJogos} />
             <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-soft">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Data"><Input type="date" value={data} onChange={(e) => setData(e.target.value || todayISO())} /></Field>
