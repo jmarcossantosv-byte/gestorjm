@@ -43,6 +43,13 @@
       "when": 1792456376849,
       "tag": "0005_football_favorites_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792581170232,
+      "tag": "0006_football_leagues",
+      "breakpoints": true
     }
   ]
 }

@@ -204,6 +204,33 @@ export type Database = {
         }
         Relationships: []
       }
+      football_leagues: {
+        Row: {
+          league_id: number
+          logo: string | null
+          nome: string
+          pais: string | null
+          temporada_cruzada: boolean
+          user_id: string
+        }
+        Insert: {
+          league_id: number
+          logo?: string | null
+          nome: string
+          pais?: string | null
+          temporada_cruzada?: boolean
+          user_id?: string
+        }
+        Update: {
+          league_id?: number
+          logo?: string | null
+          nome?: string
+          pais?: string | null
+          temporada_cruzada?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       football_teams: {
         Row: {
           escudo: string | null
