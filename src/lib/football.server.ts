@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export class FootballError extends Error {}
+
 export const providerTeam = z.object({ id: z.number().int().positive(), name: z.string(), logo: z.string().nullable().optional() });
 export const providerFixture = z.object({
   fixture: z.object({ id: z.number().int().positive(), date: z.string().datetime({ offset: true }) }),
@@ -11,16 +13,16 @@ export async function footballRequest(path: string, params: Record<string, strin
   const url = new URL(path, "https://v3.football.api-sports.io");
   Object.entries(params).forEach(([k, value]) => url.searchParams.set(k, value));
   const response = await fetch(url, { headers: { "x-apisports-key": key }, signal: AbortSignal.timeout(15000) });
-  if (response.status === 429) throw new Error("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
-  if (!response.ok) throw new Error("Não foi possível consultar os jogos agora. Você pode continuar preenchendo manualmente.");
+  if (response.status === 429) throw new FootballError("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
+  if (!response.ok) throw new FootballError("Não foi possível consultar os jogos agora. Você pode continuar preenchendo manualmente.");
   const body = z.object({ errors: z.union([z.array(z.unknown()), z.record(z.unknown())]), response: z.array(z.unknown()) }).parse(await response.json());
   const errors = Object.values(body.errors);
   if (errors.length) {
     const details = errors.map(String).join(" ");
-    if (/limit|quota|requests/i.test(details)) throw new Error("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
-    if (/free|plan|season|subscription/i.test(details)) throw new Error("Seu plano da API não permite consultar esta data ou temporada. Você pode preencher manualmente.");
-    if (/key|token|auth/i.test(details)) throw new Error("A chave da API não foi aceita. Verifique sua conta API-Sports; a edição manual continua disponível.");
-    throw new Error("A API não conseguiu concluir a consulta. Você pode continuar preenchendo manualmente.");
+    if (/limit|quota|requests/i.test(details)) throw new FootballError("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
+    if (/free|plan|season|subscription/i.test(details)) throw new FootballError("Seu plano da API não permite consultar esta data ou temporada. Você pode preencher manualmente.");
+    if (/key|token|auth/i.test(details)) throw new FootballError("A chave da API não foi aceita. Verifique sua conta API-Sports; a edição manual continua disponível.");
+    throw new FootballError("A API não conseguiu concluir a consulta. Você pode continuar preenchendo manualmente.");
   }
   return body.response;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, Plus, Trash2, Loader2, CalendarSearch, Shield } from "lucide-react";
@@ -10,6 +10,8 @@ import { searchFootballTeams, fetchFootballGames } from "@/lib/football.function
 import type { FootballTeam, FootballGame } from "@/lib/football";
 
 export function BannerFootball({ date, onGames }: { date: string; onGames: (games: FootballGame[], date: string) => void }) {
+  const onGamesRef = useRef(onGames);
+  useEffect(() => { onGamesRef.current = onGames; }, [onGames]);
   const qc = useQueryClient();
   const searchFn = useServerFn(searchFootballTeams);
   const gamesFn = useServerFn(fetchFootballGames);
@@ -66,7 +68,7 @@ export function BannerFootball({ date, onGames }: { date: string; onGames: (game
     const selectedDate = date;
     try {
       const result = await gamesFn({ data: { date: selectedDate } });
-      if (result.games.length) onGames(result.games, selectedDate);
+      if (result.games.length) onGamesRef.current(result.games, selectedDate);
       if (result.error) setNotice(result.error);
       else if (!result.games.length) setNotice("Nenhum jogo encontrado para esta data");
     } catch { setNotice("Não foi possível buscar os jogos. Você pode continuar preenchendo manualmente."); }
