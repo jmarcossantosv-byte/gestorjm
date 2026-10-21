@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { cacheFresh, dateSchema, gameSchema, teamSchema, brasiliaTime, uniqueGames } from "./football";
-import { footballRequest, providerTeam, providerFixture, crestData } from "./football.server";
+import { footballRequest, providerTeam, providerFixture, crestData, FootballError } from "./football.server";
 
 export const searchFootballTeams = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -11,7 +11,7 @@ export const searchFootballTeams = createServerFn({ method: "POST" })
     const cacheKey = `teams:${data.search.toLocaleLowerCase("pt-BR")}`;
     try {
       const { data: cache, error } = await context.supabase.from("football_cache").select("resultado,fetched_at").eq("user_id", context.userId).eq("cache_key", cacheKey).maybeSingle();
-      if (error) throw new Error("Não foi possível carregar os times. Tente novamente.");
+      if (error) throw new FootballError("Não foi possível carregar os times. Tente novamente.");
       if (cache && cacheFresh(cache.fetched_at)) return { teams: z.array(teamSchema).parse(cache.resultado), error: null };
       const key = process.env['API_FOOTBALL_KEY'];
       if (!key) return { teams: [], error: "A busca automática ainda não está configurada. Continue preenchendo manualmente." };
@@ -23,7 +23,7 @@ export const searchFootballTeams = createServerFn({ method: "POST" })
       if (writeError) return { teams, error: "Times encontrados, mas não foi possível guardar a consulta. Tente novamente mais tarde." };
       return { teams, error: null };
     } catch (error) {
-      return { teams: [], error: error instanceof Error ? error.message : "Não foi possível buscar os times. Continue preenchendo manualmente." };
+      return { teams: [], error: error instanceof FootballError ? error.message : "Não foi possível buscar os times. Continue preenchendo manualmente." };
     }
   });
 
@@ -60,7 +60,7 @@ export const fetchFootballGames = createServerFn({ method: "POST" })
         games.push(...result);
         if (writeError) { failure = "Jogos encontrados, mas não foi possível guardar a consulta. Tente novamente mais tarde."; break; }
       } catch (error) {
-        failure = error instanceof Error ? error.message : "Não foi possível consultar a API. Continue preenchendo manualmente.";
+        failure = error instanceof FootballError ? error.message : "Não foi possível consultar a API. Continue preenchendo manualmente.";
         break; // Never burn the remaining quota after a provider failure.
       }
     }
