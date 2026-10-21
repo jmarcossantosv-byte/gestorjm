@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export class FootballError extends Error {}
+export class FootballError extends Error {
+  constructor(message: string, public readonly code: "date_restricted" | "provider_error" = "provider_error") {
+    super(message);
+  }
+}
 
 export const providerTeam = z.object({ id: z.number().int().positive(), name: z.string(), logo: z.string().nullable().optional() });
 export const providerFixture = z.object({
@@ -19,8 +23,10 @@ export async function footballRequest(path: string, params: Record<string, strin
   const errors = Object.values(body.errors);
   if (errors.length) {
     const details = errors.map(String).join(" ");
+    if (/season|historical|(?:date|data).*(?:available|allow|restrict|access)|(?:plan|subscription).*(?:date|access)/i.test(details)) {
+      throw new FootballError("A API-Football bloqueou a consulta da data escolhida por uma restrição do seu plano. Não foi possível verificar se há jogos nessa data. Você pode adicionar e editar os jogos manualmente no banner.", "date_restricted");
+    }
     if (/limit|quota|requests/i.test(details)) throw new FootballError("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
-    if (/free|plan|season|subscription/i.test(details)) throw new FootballError("Seu plano da API não permite consultar esta data ou temporada. Você pode preencher manualmente.");
     if (/key|token|auth/i.test(details)) throw new FootballError("A chave da API não foi aceita. Verifique sua conta API-Sports; a edição manual continua disponível.");
     throw new FootballError("A API não conseguiu concluir a consulta. Você pode continuar preenchendo manualmente.");
   }
