@@ -23,7 +23,7 @@ export async function footballRequest(path: string, params: Record<string, strin
   const errors = Object.values(body.errors);
   if (errors.length) {
     const details = errors.map(String).join(" ");
-    if (/free|plan|season|subscription|date|historical/i.test(details)) {
+    if (/season|historical|(?:date|data).*(?:available|allow|restrict|access)|(?:plan|subscription).*(?:date|access)/i.test(details)) {
       throw new FootballError("A API-Football bloqueou a consulta da data escolhida por uma restrição do seu plano. Não foi possível verificar se há jogos nessa data. Você pode adicionar e editar os jogos manualmente no banner.", "date_restricted");
     }
     if (/limit|quota|requests/i.test(details)) throw new FootballError("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
