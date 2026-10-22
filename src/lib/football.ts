@@ -2,6 +2,13 @@ import { z } from "zod";
 
 export const CACHE_HOURS = 6;
 export const teamSchema = z.object({ id: z.number().int().positive(), nome: z.string(), escudo: z.string().nullable() });
+export const leagueSchema = z.object({ id: z.number().int().positive(), nome: z.string(), pais: z.string().nullable(), logo: z.string().nullable(), cruzada: z.boolean() });
+export type FootballLeague = z.infer<typeof leagueSchema>;
+// Cross-year leagues (e.g. Europe, Aug-May) use the starting year as season.
+export function leagueSeason(date: string, crossYear: boolean) {
+  const year = Number(date.slice(0, 4)); const month = Number(date.slice(5, 7));
+  return crossYear && month < 7 ? year - 1 : year;
+}
 export type FootballTeam = z.infer<typeof teamSchema>;
 export const gameSchema = z.object({
   fixtureId: z.number().int().positive(), campeonato: z.string(), casa: z.string(), visitante: z.string(),

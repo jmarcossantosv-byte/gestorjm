@@ -7,6 +7,11 @@ export class FootballError extends Error {
 }
 
 export const providerTeam = z.object({ id: z.number().int().positive(), name: z.string(), logo: z.string().nullable().optional() });
+export const providerLeague = z.object({
+  league: z.object({ id: z.number().int().positive(), name: z.string(), logo: z.string().nullable().optional() }),
+  country: z.object({ name: z.string().nullable().optional() }).optional(),
+  seasons: z.array(z.object({ year: z.number().int(), start: z.string(), end: z.string(), current: z.boolean() })).optional(),
+});
 export const providerFixture = z.object({
   fixture: z.object({ id: z.number().int().positive(), date: z.string().datetime({ offset: true }) }),
   league: z.object({ name: z.string() }),
@@ -39,7 +44,7 @@ export async function crestData(src: string | null | undefined): Promise<string 
   if (!src) return undefined;
   try {
     const url = new URL(src);
-    if (url.protocol !== "https:" || url.hostname !== "media.api-sports.io" || !/^\/football\/teams\/\d+\.png$/.test(url.pathname)) return undefined;
+    if (url.protocol !== "https:" || url.hostname !== "media.api-sports.io" || !/^\/football\/(?:teams|leagues)\/\d+\.png$/.test(url.pathname)) return undefined;
     const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(7000) });
     if (!response.ok || !response.headers.get("content-type")?.startsWith("image/png")) return undefined;
     const buffer = await response.arrayBuffer();
