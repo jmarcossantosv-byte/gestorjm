@@ -26,3 +26,9 @@ describe("jogos automáticos", () => {
     expect(result.omitted).toBe(1);
   });
 });
+import { leagueSeason } from "@/lib/football";
+describe("leagueSeason", () => {
+  it("usa o ano da data em ligas de calendário anual", () => expect(leagueSeason("2026-03-10", false)).toBe(2026));
+  it("usa o ano anterior em ligas europeias antes de julho", () => expect(leagueSeason("2027-03-10", true)).toBe(2026));
+  it("usa o ano atual em ligas europeias a partir de julho", () => expect(leagueSeason("2026-10-21", true)).toBe(2026));
+});
