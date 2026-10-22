@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { cacheFresh, dateSchema, gameSchema, leagueSchema, leagueSeason, brasiliaTime, uniqueGames } from "./football";
-import { footballRequest, providerLeague, providerFixture, crestData, FootballError } from "./football.server";
+import { RESTRICTED_MESSAGE, footballRequest, providerLeague, providerFixture, crestData, FootballError } from "./football.server";
 
 export const searchFootballLeagues = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -48,6 +48,7 @@ export const fetchFootballGames = createServerFn({ method: "POST" })
       const cacheKey = `fixtures-league:${data.date}:${league.league_id}:${season}`;
       const { data: cache, error } = await context.supabase.from("football_cache").select("resultado,fetched_at").eq("user_id", context.userId).eq("cache_key", cacheKey).maybeSingle();
       if (error) { failure = "Não foi possível carregar as consultas salvas. Continue preenchendo manualmente."; break; }
+      if (cache && cacheFresh(cache.fetched_at) && !Array.isArray(cache.resultado)) { failure = RESTRICTED_MESSAGE; cached++; break; }
       if (cache && cacheFresh(cache.fetched_at)) { games.push(...z.array(gameSchema).parse(cache.resultado)); cached++; continue; }
       if (!key) { failure = "A busca automática ainda não está configurada. Continue preenchendo manualmente."; break; }
       try {
@@ -65,6 +66,11 @@ export const fetchFootballGames = createServerFn({ method: "POST" })
         games.push(...result);
         if (writeError) { failure = "Jogos encontrados, mas não foi possível guardar a consulta. Tente novamente mais tarde."; break; }
       } catch (error) {
+        if (error instanceof FootballError && error.code === "date_restricted") {
+          // Remember the plan restriction too, so repeated clicks do not spend quota.
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          await supabaseAdmin.from("football_cache").upsert({ user_id: context.userId, cache_key: cacheKey, resultado: { restricted: true }, fetched_at: new Date().toISOString() });
+        }
         failure = error instanceof FootballError ? error.message : "Não foi possível consultar a API. Continue preenchendo manualmente.";
         break; // Never burn the remaining quota after a provider failure.
       }
