@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const RESTRICTED_MESSAGE = "A API-Football bloqueou a consulta da data escolhida por uma restrição do seu plano. Não foi possível verificar se há jogos nessa data. Você pode adicionar e editar os jogos manualmente no banner.";
+
 export class FootballError extends Error {
   constructor(message: string, public readonly code: "date_restricted" | "provider_error" = "provider_error") {
     super(message);
@@ -22,15 +24,16 @@ export async function footballRequest(path: string, params: Record<string, strin
   const url = new URL(path, "https://v3.football.api-sports.io");
   Object.entries(params).forEach(([k, value]) => url.searchParams.set(k, value));
   const response = await fetch(url, { headers: { "x-apisports-key": key }, signal: AbortSignal.timeout(15000) });
-  if (response.status === 429) throw new FootballError("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
+  if (response.status === 429) throw new FootballError("Muitas consultas em sequência. Aguarde 1 minuto e tente de novo, ou preencha manualmente.");
   if (!response.ok) throw new FootballError("Não foi possível consultar os jogos agora. Você pode continuar preenchendo manualmente.");
   const body = z.object({ errors: z.union([z.array(z.unknown()), z.record(z.unknown())]), response: z.array(z.unknown()) }).parse(await response.json());
   const errors = Object.values(body.errors);
   if (errors.length) {
     const details = errors.map(String).join(" ");
     if (/season|historical|(?:date|data).*(?:available|allow|restrict|access)|(?:plan|subscription).*(?:date|access)/i.test(details)) {
-      throw new FootballError("A API-Football bloqueou a consulta da data escolhida por uma restrição do seu plano. Não foi possível verificar se há jogos nessa data. Você pode adicionar e editar os jogos manualmente no banner.", "date_restricted");
+      throw new FootballError(RESTRICTED_MESSAGE, "date_restricted");
     }
+    if (/minute|rate/i.test(details)) throw new FootballError("Muitas consultas em sequência. Aguarde 1 minuto e tente de novo, ou preencha manualmente.");
     if (/limit|quota|requests/i.test(details)) throw new FootballError("O limite de consultas da API foi atingido. Tente mais tarde ou preencha manualmente.");
     if (/key|token|auth/i.test(details)) throw new FootballError("A chave da API não foi aceita. Verifique sua conta API-Sports; a edição manual continua disponível.");
     throw new FootballError("A API não conseguiu concluir a consulta. Você pode continuar preenchendo manualmente.");

@@ -18,9 +18,9 @@ describe("API-Football", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ errors: { plan: "Free plans have limited seasons; this date is not available" }, response: [] }))));
     await expect(footballRequest("/fixtures", { date: "2026-10-21" }, "test-only")).rejects.toMatchObject({ code: "date_restricted" });
   });
-  it("rejects HTTP rate limits", async () => {
+  it("treats HTTP 429 as the per-minute limit, not the daily quota", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 429 })));
-    await expect(footballRequest("/fixtures", {}, "test-only")).rejects.toThrow(/limite de consultas/);
+    await expect(footballRequest("/fixtures", {}, "test-only")).rejects.toThrow(/Aguarde 1 minuto/);
   });
   it("does not fetch arbitrary crest URLs", async () => {
     const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
