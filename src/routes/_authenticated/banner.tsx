@@ -287,7 +287,7 @@ function Banner() {
         <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Gerador de Banner</h1>
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="space-y-4">
-            <BannerFootball date={data} onGames={importarJogos} />
+            <BannerFootball date={data} onDate={setData} onGames={importarJogos} />
             <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-soft">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Data"><Input type="date" value={data} onChange={(e) => setData(e.target.value || todayISO())} /></Field>

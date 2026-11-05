@@ -1,118 +1,105 @@
-import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Search, Plus, Trash2, Loader2, CalendarSearch, Shield } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2, CalendarSearch, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { searchFootballLeagues, fetchFootballGames } from "@/lib/football.functions";
-import type { FootballLeague, FootballGame } from "@/lib/football";
+import { Checkbox } from "@/components/ui/checkbox";
+import { listNtfutGames, prepareNtfutGames } from "@/lib/ntfut.functions";
+import type { FootballGame } from "@/lib/football";
+import type { NtfutGame } from "@/lib/ntfut";
 
-export function BannerFootball({ date, onGames }: { date: string; onGames: (games: FootballGame[], date: string) => void }) {
-  const onGamesRef = useRef(onGames);
-  useEffect(() => { onGamesRef.current = onGames; }, [onGames]);
-  const qc = useQueryClient();
-  const searchFn = useServerFn(searchFootballLeagues);
-  const gamesFn = useServerFn(fetchFootballGames);
-  const [search, setSearch] = useState("");
-  const [results, setResults] = useState<FootballLeague[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [fetching, setFetching] = useState(false);
-  const [changing, setChanging] = useState<number | null>(null);
+const MAX = 10;
+
+function isoDate(offset: number) {
+  const d = new Date(Date.now() + offset * 86400000);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
+}
+
+export function BannerFootball({ date, onDate, onGames }: { date: string; onDate: (date: string) => void; onGames: (games: FootballGame[], date: string) => void }) {
+  const listFn = useServerFn(listNtfutGames);
+  const prepareFn = useServerFn(prepareNtfutGames);
+  const [games, setGames] = useState<NtfutGame[] | null>(null);
+  const [gamesDate, setGamesDate] = useState(date);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
-  const favorites = useQuery({
-    queryKey: ["football-leagues"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("football_leagues").select("league_id,nome,pais,logo").order("nome");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const hoje = isoDate(0), amanha = isoDate(1);
 
-  async function findTeams() {
-    if (search.trim().length < 3) return;
-    setSearching(true); setNotice(null); setSearched(false);
+  async function buscar(target: string) {
+    onDate(target);
+    setLoading(true); setNotice(null); setGames(null); setSelected(new Set()); setGamesDate(target);
     try {
-      const result = await searchFn({ data: { search: search.trim() } });
-      setResults(result.leagues); setSearched(true);
-      if (result.error) setNotice(result.error);
-    } catch { setNotice("Não foi possível buscar as competições. Você pode continuar preenchendo manualmente."); }
-    finally { setSearching(false); }
+      const r = await listFn({ data: { date: target } });
+      setGames(r.games);
+      if (r.error) setNotice(r.error);
+      else if (!r.games.length) setNotice("Nenhum jogo encontrado para esta data");
+    } catch { setNotice("Não foi possível buscar os jogos agora. Você pode preencher manualmente."); }
+    finally { setLoading(false); }
   }
 
-  async function addTeam(team: FootballLeague) {
-    setChanging(team.id);
+  function toggle(id: number) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else if (n.size < MAX) n.add(id);
+      return n;
+    });
+  }
+
+  async function adicionar() {
+    if (!games) return;
+    setAdding(true);
     try {
-      const { error } = await supabase.from("football_leagues").upsert({ league_id: team.id, nome: team.nome, pais: team.pais, logo: team.logo, temporada_cruzada: team.cruzada });
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["football-leagues"] });
-      toast.success("Competição adicionada.");
-    } catch { toast.error("Não foi possível salvar a competição. Tente novamente."); }
-    finally { setChanging(null); }
+      const r = await prepareFn({ data: { games: games.filter((g) => selected.has(g.fixtureId)) } });
+      onGames(r.games, gamesDate);
+      setGames(null); setSelected(new Set());
+    } catch { setNotice("Não foi possível adicionar os jogos. Tente novamente."); }
+    finally { setAdding(false); }
   }
 
-  async function removeTeam(id: number) {
-    setChanging(id);
-    try {
-      const { error } = await supabase.from("football_leagues").delete().eq("league_id", id);
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["football-leagues"] });
-    } catch { toast.error("Não foi possível remover a competição."); }
-    finally { setChanging(null); }
-  }
+  const grupos = new Map<string, NtfutGame[]>();
+  games?.forEach((g) => grupos.set(g.campeonato, [...(grupos.get(g.campeonato) ?? []), g]));
 
-  async function findGames() {
-    setFetching(true); setNotice(null);
-    const selectedDate = date;
-    try {
-      const result = await gamesFn({ data: { date: selectedDate } });
-      if (result.games.length) onGamesRef.current(result.games, selectedDate);
-      if (result.error) setNotice(result.error);
-      else if (!result.games.length) setNotice("Nenhum jogo encontrado para esta data");
-    } catch { setNotice("Não foi possível buscar os jogos. Você pode continuar preenchendo manualmente."); }
-    finally { setFetching(false); }
-  }
-
-  function crest(src: string | null, name: string) {
-    return src ? <img src={src} alt={`Logo ${name}`} className="h-8 w-8 shrink-0 object-contain" /> : <Shield className="h-8 w-8 shrink-0 text-muted-foreground" />;
-  }
+  const crest = (src: string | null, name: string) =>
+    src ? <img src={src} alt="" title={name} className="h-6 w-6 shrink-0 object-contain" loading="lazy" /> : <Shield className="h-6 w-6 shrink-0 text-muted-foreground" />;
 
   return (
-    <section className="space-y-4 border-b pb-5" aria-labelledby="my-teams-title">
-      <h2 id="my-teams-title" className="font-bold">Minhas competições</h2>
-      <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void findTeams(); }}>
-        <Input aria-label="Buscar competição pelo nome" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ex.: Brasileirão, Libertadores" minLength={3} maxLength={80} />
-        <Button type="submit" variant="outline" disabled={searching || search.trim().length < 3} aria-label="Buscar competições" title="Buscar competições">
-          {searching ? <Loader2 className="animate-spin" /> : <Search />}
+    <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-soft" aria-labelledby="buscar-jogos-title">
+      <h2 id="buscar-jogos-title" className="font-bold">Buscar jogos de futebol</h2>
+      <div className="flex flex-wrap gap-2">
+        <Button variant={date === hoje ? "default" : "outline"} size="sm" disabled={loading} onClick={() => buscar(hoje)}>Hoje</Button>
+        <Button variant={date === amanha ? "default" : "outline"} size="sm" disabled={loading} onClick={() => buscar(amanha)}>Amanhã</Button>
+        <Button variant="outline" size="sm" disabled={loading} onClick={() => buscar(date)}>
+          {loading ? <Loader2 className="animate-spin" /> : <CalendarSearch />}Buscar na data escolhida
         </Button>
-      </form>
-      {results.length > 0 && <ul className="max-h-56 divide-y overflow-y-auto">
-        {results.map((team) => {
-          const added = favorites.data?.some((item) => item.league_id === team.id);
-          return <li key={team.id} className="flex items-center gap-3 py-2">
-            {crest(team.logo, team.nome)}<span className="min-w-0 flex-1 break-words text-sm">{team.nome}{team.pais && <span className="block text-xs text-muted-foreground">{team.pais}</span>}</span>
-            <Button size="sm" variant="outline" disabled={added || changing !== null} onClick={() => addTeam(team)} aria-label={`Adicionar ${team.nome}`}>
-              {changing === team.id ? <Loader2 className="animate-spin" /> : <Plus />}{added ? "Adicionado" : "Adicionar"}
-            </Button>
-          </li>;
-        })}
-      </ul>}
-      {searched && !results.length && !notice && <p className="text-sm text-muted-foreground">Nenhuma competição encontrada.</p>}
-      {favorites.isPending && <Loader2 className="h-5 w-5 animate-spin" aria-label="Carregando minhas competições" />}
-      {favorites.isError && <div className="flex items-center gap-2 text-sm text-destructive">Não foi possível carregar suas competições.<Button variant="outline" size="sm" onClick={() => favorites.refetch()}>Tentar novamente</Button></div>}
-      {!favorites.isPending && !favorites.isError && !favorites.data?.length && <p className="text-sm text-muted-foreground">Nenhuma competição selecionada.</p>}
-      {!!favorites.data?.length && <ul className="divide-y">
-        {favorites.data.map((team) => <li key={team.league_id} className="flex items-center gap-3 py-2">
-          {crest(team.logo, team.nome)}<span className="min-w-0 flex-1 break-words text-sm font-semibold">{team.nome}{team.pais && <span className="block text-xs font-normal text-muted-foreground">{team.pais}</span>}</span>
-          <Button variant="ghost" size="icon" className="text-destructive" disabled={changing !== null || fetching} aria-label={`Remover ${team.nome}`} title={`Remover ${team.nome}`} onClick={() => removeTeam(team.league_id)}><Trash2 /></Button>
-        </li>)}
-      </ul>}
-      <Button className="w-full" disabled={fetching || !favorites.data?.length || changing !== null} onClick={findGames}>
-        {fetching ? <Loader2 className="animate-spin" /> : <CalendarSearch />}Buscar jogos do dia
-      </Button>
+      </div>
       {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
+      {!!games?.length && <>
+        <p className="text-sm text-muted-foreground">Marque os jogos para o banner ({selected.size}/{MAX}).</p>
+        <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
+          {[...grupos].map(([camp, lista]) => <div key={camp}>
+            <h3 className="mb-1 text-xs font-bold uppercase text-muted-foreground">{camp}</h3>
+            <ul className="divide-y rounded-lg border">
+              {lista.map((g) => {
+                const marcado = selected.has(g.fixtureId);
+                return <li key={g.fixtureId}>
+                  <label className="flex cursor-pointer items-center gap-3 p-2 text-sm">
+                    <Checkbox checked={marcado} disabled={!marcado && selected.size >= MAX} onCheckedChange={() => toggle(g.fixtureId)} />
+                    <span className="w-11 shrink-0 font-semibold">{g.horario}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">{crest(g.escudoCasaUrl, g.casa)}<span className="truncate">{g.casa}</span></span>
+                      <span className="flex items-center gap-1.5">{crest(g.escudoVisitanteUrl, g.visitante)}<span className="truncate">{g.visitante}</span></span>
+                      {g.canal && <span className="block truncate text-xs text-muted-foreground">{g.canal}</span>}
+                    </span>
+                  </label>
+                </li>;
+              })}
+            </ul>
+          </div>)}
+        </div>
+        <Button className="w-full" disabled={!selected.size || adding} onClick={adicionar}>
+          {adding && <Loader2 className="animate-spin" />}Adicionar {selected.size || ""} jogo(s) ao banner
+        </Button>
+      </>}
     </section>
   );
 }
