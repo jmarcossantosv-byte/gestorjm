@@ -354,7 +354,13 @@ function Banner() {
               {jogos.map((j) => (
                 <div key={j.id} className="flex items-center justify-between gap-2 rounded-xl border p-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{j.casa} x {j.visitante}</p>
+                    <p className="flex items-center gap-1.5 font-semibold">
+                      {j.escudoCasa && <img src={j.escudoCasa} alt="" className="h-6 w-6 shrink-0 object-contain" />}
+                      <span className="truncate">{j.casa}</span>
+                      <span className="shrink-0 text-muted-foreground">x</span>
+                      {j.escudoVisitante && <img src={j.escudoVisitante} alt="" className="h-6 w-6 shrink-0 object-contain" />}
+                      <span className="truncate">{j.visitante}</span>
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">{[j.campeonato, j.horario, j.canal].filter(Boolean).join(" • ")}</p>
                   </div>
                   <div className="flex shrink-0">
