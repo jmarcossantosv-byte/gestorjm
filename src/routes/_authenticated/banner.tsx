@@ -86,109 +86,150 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
   ]);
   const cor = cfg.cor || "#16a34a";
 
+  const W = (s: number) => Math.round(s);
+  const temFundo = !!fundo;
   // fundo
   const g = ctx.createLinearGradient(0, 0, w, h);
-  g.addColorStop(0, "#0b1220"); g.addColorStop(1, "#05070d");
+  g.addColorStop(0, "#0a1526"); g.addColorStop(1, "#03060c");
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (fundo) {
     const s = Math.max(w / fundo.width, h / fundo.height);
     ctx.drawImage(fundo, (w - fundo.width * s) / 2, (h - fundo.height * s) / 2, fundo.width * s, fundo.height * s);
-    ctx.fillStyle = "rgba(5,7,13,0.72)"; ctx.fillRect(0, 0, w, h);
+    const ov = ctx.createLinearGradient(0, 0, w, 0);
+    ov.addColorStop(0, "rgba(3,6,12,0.15)"); ov.addColorStop(0.45, "rgba(3,6,12,0.55)"); ov.addColorStop(1, "rgba(3,6,12,0.85)");
+    ctx.fillStyle = ov; ctx.fillRect(0, 0, w, h);
   }
-  ctx.fillStyle = cor; ctx.globalAlpha = 0.25;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w * 0.55, 0); ctx.lineTo(0, h * 0.35); ctx.fill();
-  ctx.globalAlpha = 1;
+  const vg = ctx.createLinearGradient(0, h * 0.75, 0, h);
+  vg.addColorStop(0, "rgba(3,6,12,0)"); vg.addColorStop(1, "rgba(3,6,12,0.9)");
+  ctx.fillStyle = vg; ctx.fillRect(0, h * 0.75, w, h * 0.25);
 
-  const pad = Math.round(Math.min(w, h) * 0.05);
+  const pad = Math.round(Math.min(w, h) * 0.04);
+  const colX = temFundo && fmt !== "feed" ? w * (fmt === "paisagem" ? 0.36 : 0.42) : pad;
+  const colR = w - pad;
+  const colWAll = colR - colX;
+  const ccx = colX + colWAll / 2;
   let y = pad;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
   // logo
   if (logo) {
-    const lh = Math.min(h * 0.08, 150);
-    const lw = (logo.width / logo.height) * lh;
-    ctx.drawImage(logo, (w - lw) / 2, y, lw, lh);
+    const lh = Math.min(h * 0.07, 140);
+    const lw = Math.min((logo.width / logo.height) * lh, colWAll * 0.7);
+    ctx.drawImage(logo, ccx - lw / 2, y, lw, (logo.height / logo.width) * lw);
     y += lh + pad * 0.4;
   }
-  // título
-  const tSize = Math.round(Math.min(w, h) * 0.085);
-  fit(ctx, (cfg.titulo || "JOGOS DE HOJE").toUpperCase(), w - pad * 2, tSize, 900);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText((cfg.titulo || "JOGOS DE HOJE").toUpperCase(), w / 2, y + tSize / 2);
-  y += tSize + pad * 0.3;
-  // data
-  const dSize = Math.round(tSize * 0.42);
-  const dTxt = fmtDate(data);
-  ctx.font = `800 ${dSize}px Manrope, sans-serif`;
-  const dw = ctx.measureText(dTxt).width + dSize * 1.6;
+
+  // bloco de data
+  const [, mm = "", dd = ""] = data.split("-");
+  const dias = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
+  const dia = dias[new Date(data + "T12:00:00").getDay()] ?? "";
+  const bh = Math.min(h * 0.075, colWAll * 0.2);
+  const bw = Math.min(colWAll * 0.75, bh * 4.2);
+  const bx = ccx - bw / 2;
   ctx.fillStyle = cor;
-  ctx.beginPath(); ctx.roundRect((w - dw) / 2, y, dw, dSize * 1.6, dSize * 0.8); ctx.fill();
-  ctx.fillStyle = "#ffffff"; ctx.fillText(dTxt, w / 2, y + dSize * 0.8);
-  y += dSize * 1.6 + pad * 0.6;
+  ctx.beginPath(); ctx.roundRect(bx + bh * 0.6, y + bh * 0.08, bw - bh * 0.6, bh * 0.84, bh * 0.42); ctx.fill();
+  ctx.fillStyle = "#ffffff"; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = bh * 0.2;
+  ctx.beginPath(); ctx.roundRect(bx, y, bh * 1.05, bh, bh * 0.15); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#0a0a0a"; ctx.font = `900 ${W(bh * 0.4)}px Manrope, sans-serif`;
+  ctx.fillText(dd, bx + bh * 0.525, y + bh * 0.3); ctx.fillText(mm, bx + bh * 0.525, y + bh * 0.72);
+  ctx.fillStyle = "#ffffff";
+  const titulo = (cfg.titulo && cfg.titulo !== "JOGOS DE HOJE" ? cfg.titulo : dia).toUpperCase();
+  fit(ctx, titulo, bw - bh * 1.4, bh * 0.55, 900);
+  ctx.fillText(titulo, bx + bh * 1.05 + (bw - bh * 1.05) / 2, y + bh * 0.52);
+  y += bh + pad * 0.7;
 
   // rodapé
-  const fSize = Math.round(Math.min(w, h) * 0.032);
-  const footerH = cfg.rodape ? fSize * 2.2 : 0;
+  const fSize = Math.round(Math.min(w, h) * 0.03);
+  const footerH = cfg.rodape ? fSize * 2.6 : 0;
   const bottom = h - pad - footerH;
   if (cfg.rodape) {
-    ctx.fillStyle = "#ffffff"; ctx.font = `700 ${fSize}px Manrope, sans-serif`;
-    ctx.fillText(cfg.rodape, w / 2, h - pad - fSize * 0.6);
+    ctx.font = `800 ${fSize}px Manrope, sans-serif`;
+    const tw = Math.min(ctx.measureText(cfg.rodape.toUpperCase()).width + fSize * 3, w - pad * 2);
+    const fy = h - pad - fSize * 2;
+    ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.strokeStyle = cor; ctx.lineWidth = Math.max(2, fSize * 0.1);
+    ctx.beginPath(); ctx.roundRect(w / 2 - tw / 2, fy, tw, fSize * 2, fSize); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ffffff"; fit(ctx, cfg.rodape.toUpperCase(), tw - fSize * 2, fSize, 800);
+    ctx.fillText(cfg.rodape.toUpperCase(), w / 2, fy + fSize);
   }
 
   // jogos
   const n = jogos.length;
   if (!n) {
     ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = `600 ${fSize}px Manrope, sans-serif`;
-    ctx.fillText("Adicione jogos no editor", w / 2, (y + bottom) / 2);
+    ctx.fillText("Adicione jogos no editor", ccx, (y + bottom) / 2);
     return;
   }
-  const cols = (fmt === "paisagem" && n > 4) || (fmt === "feed" && n > 6) ? 2 : 1;
+  const cols = (fmt === "paisagem" && n > 4) || (fmt === "feed" && n > 5) ? 2 : 1;
   const rows = Math.ceil(n / cols);
-  const gap = Math.round(pad * 0.3);
-  const colW = (w - pad * 2 - gap * (cols - 1)) / cols;
-  const rowH = Math.min((bottom - y - gap * (rows - 1)) / rows, h * 0.16);
+  const gap = Math.round(pad * 0.45);
+  const colW = (colWAll - gap * (cols - 1)) / cols;
+  const rowH = Math.min((bottom - y - gap * (rows - 1)) / rows, colW * 0.36, h * 0.15);
   const startY = y + Math.max(0, (bottom - y - (rowH * rows + gap * (rows - 1))) / 2);
 
   jogos.forEach((j, i) => {
     const c = cols === 2 ? i % 2 : 0;
     const r = cols === 2 ? Math.floor(i / 2) : i;
-    const x = pad + c * (colW + gap);
+    const x = colX + c * (colW + gap);
     const ry = startY + r * (rowH + gap);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.beginPath(); ctx.roundRect(x, ry, colW, rowH, rowH * 0.15); ctx.fill();
-    ctx.fillStyle = cor; ctx.fillRect(x, ry + rowH * 0.15, Math.max(6, rowH * 0.05), rowH * 0.7);
+    const cardY = ry + rowH * 0.32;
+    const cardH = rowH * 0.68;
+    // card
+    const cg = ctx.createLinearGradient(x, 0, x + colW, 0);
+    cg.addColorStop(0, cor); cg.addColorStop(1, "rgba(255,255,255,0.05)");
+    ctx.globalAlpha = 0.9; ctx.fillStyle = cor;
+    ctx.beginPath(); ctx.roundRect(x, cardY, colW, cardH, cardH * 0.25); ctx.fill();
+    ctx.globalAlpha = 0.35; ctx.fillStyle = "#000000";
+    ctx.beginPath(); ctx.roundRect(x, cardY, colW, cardH, cardH * 0.25); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = cg; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.roundRect(x, cardY, colW, cardH, cardH * 0.25); ctx.fill();
+    ctx.globalAlpha = 1;
 
-    const base = rowH;
-    const small = base * 0.17;
-    const nameS = base * 0.24;
-    const cx = x + colW / 2;
-    // campeonato
-    ctx.fillStyle = cor; fit(ctx, (j.campeonato || "").toUpperCase(), colW * 0.9, small, 800);
-    ctx.fillText((j.campeonato || "").toUpperCase(), cx, ry + base * 0.16);
-    // horário centro
-    const tw = base * 0.9;
-    ctx.fillStyle = "#ffffff"; fit(ctx, j.horario || "--:--", tw, base * 0.3, 900);
-    ctx.fillText(j.horario || "--:--", cx, ry + base * 0.52);
-    // escudos e nomes
-    const crest = base * 0.38;
-    const side = (colW - tw) / 2 - crest - base * 0.25;
+    // escudos
+    const box = rowH * 0.66;
+    const vsW = box * 0.35;
+    const b1 = x + colW * 0.5 - vsW / 2 - box;
+    const b2 = x + colW * 0.5 + vsW / 2;
     const eC = escudos[i * 2], eV = escudos[i * 2 + 1];
-    const cyRow = ry + base * 0.52;
-    const lx = x + base * 0.2;
-    if (eC) ctx.drawImage(eC, lx, cyRow - crest / 2, crest, crest);
-    const rx = x + colW - base * 0.2 - crest;
-    if (eV) ctx.drawImage(eV, rx, cyRow - crest / 2, crest, crest);
+    [[b1, eC], [b2, eV]].forEach(([bx2, img]) => {
+      const bxN = bx2 as number;
+      ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = box * 0.12; ctx.shadowOffsetY = box * 0.04;
+      ctx.fillStyle = "#f4f6f8";
+      ctx.beginPath(); ctx.roundRect(bxN, ry, box, box, box * 0.18); ctx.fill();
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      const im = img as HTMLImageElement | null;
+      if (im) {
+        const m = box * 0.72; const s = Math.min(m / im.width, m / im.height);
+        ctx.drawImage(im, bxN + (box - im.width * s) / 2, ry + (box - im.height * s) / 2, im.width * s, im.height * s);
+      }
+    });
+    ctx.fillStyle = "#ffffff"; ctx.font = `italic 900 ${W(box * 0.28)}px Manrope, sans-serif`;
+    ctx.fillText("VS", x + colW / 2, ry + box * 0.55);
+
+    // esquerda: campeonato + horário
+    const leftW = b1 - x - rowH * 0.12;
+    const lcx = x + leftW / 2 + rowH * 0.06;
+    const midY = cardY + cardH * 0.38;
     ctx.fillStyle = "#ffffff";
-    fit(ctx, j.casa, side, nameS, 800);
-    ctx.textAlign = "right"; ctx.fillText(j.casa, cx - tw / 2, cyRow);
-    fit(ctx, j.visitante, side, nameS, 800);
-    ctx.textAlign = "left"; ctx.fillText(j.visitante, cx + tw / 2, cyRow);
-    ctx.textAlign = "center";
-    // canal
+    fit(ctx, (j.campeonato || "").toUpperCase(), leftW * 0.92, rowH * 0.1, 800);
+    ctx.fillText((j.campeonato || "").toUpperCase(), lcx, midY - rowH * 0.12);
+    fit(ctx, j.horario || "--:--", leftW * 0.92, rowH * 0.2, 900);
+    ctx.fillText(j.horario || "--:--", lcx, midY + rowH * 0.06);
+
+    // direita: canal
+    const rightX = b2 + box + rowH * 0.06;
+    const rightW = x + colW - rightX - rowH * 0.06;
     if (j.canal) {
-      ctx.fillStyle = "rgba(255,255,255,0.75)"; fit(ctx, "📺 " + j.canal, colW * 0.9, small, 700);
-      ctx.fillText("📺 " + j.canal, cx, ry + base * 0.86);
+      fit(ctx, j.canal.toUpperCase(), rightW * 0.95, rowH * 0.15, 900);
+      ctx.font = ctx.font.replace(/^/, "italic ");
+      ctx.fillText(j.canal.toUpperCase(), rightX + rightW / 2, midY);
     }
+
+    // confronto
+    const conf = `${j.casa || ""} X ${j.visitante || ""}`.toUpperCase();
+    fit(ctx, conf, colW * 0.8, rowH * 0.12, 800);
+    ctx.fillText(conf, x + colW / 2, cardY + cardH * 0.82);
   });
 }
 
