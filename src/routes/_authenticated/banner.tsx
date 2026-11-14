@@ -192,16 +192,19 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     const b1 = x + colW * 0.5 - vsW / 2 - box;
     const b2 = x + colW * 0.5 + vsW / 2;
     const eC = escudos[i * 2], eV = escudos[i * 2 + 1];
-    [[b1, eC], [b2, eV]].forEach(([bx2, img]) => {
-      const bxN = bx2 as number;
+    const sigla = (nome: string) => nome.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 3).toUpperCase();
+    ([[b1, eC, j.casa], [b2, eV, j.visitante]] as [number, HTMLImageElement | null, string][]).forEach(([bxN, im, nome]) => {
       ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = box * 0.12; ctx.shadowOffsetY = box * 0.04;
       ctx.fillStyle = "#f4f6f8";
       ctx.beginPath(); ctx.roundRect(bxN, ry, box, box, box * 0.18); ctx.fill();
       ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-      const im = img as HTMLImageElement | null;
       if (im) {
         const m = box * 0.72; const s = Math.min(m / im.width, m / im.height);
         ctx.drawImage(im, bxN + (box - im.width * s) / 2, ry + (box - im.height * s) / 2, im.width * s, im.height * s);
+      } else if (nome.trim()) {
+        ctx.fillStyle = "#0a1526";
+        fit(ctx, sigla(nome), box * 0.8, box * 0.34, 900);
+        ctx.fillText(sigla(nome), bxN + box / 2, ry + box / 2);
       }
     });
     ctx.fillStyle = "#ffffff"; ctx.font = `italic 900 ${W(box * 0.28)}px Manrope, sans-serif`;
