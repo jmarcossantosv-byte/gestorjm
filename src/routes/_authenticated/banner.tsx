@@ -120,9 +120,9 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
   }
 
   // bloco de data
-  const [, mm, dd] = data.split("-");
+  const [, mm = "", dd = ""] = data.split("-");
   const dias = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
-  const dia = dias[new Date(data + "T12:00:00").getDay()];
+  const dia = dias[new Date(data + "T12:00:00").getDay()] ?? "";
   const bh = Math.min(h * 0.075, colWAll * 0.2);
   const bw = Math.min(colWAll * 0.75, bh * 4.2);
   const bx = ccx - bw / 2;
