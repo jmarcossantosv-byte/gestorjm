@@ -336,8 +336,9 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     const lgd = ctx.createLinearGradient(x + ip, 0, x + leftW - ip * 0.4, 0);
     lgd.addColorStop(0, "rgba(251,191,36,0)"); lgd.addColorStop(0.5, "#fbbf24"); lgd.addColorStop(1, "rgba(251,191,36,0)");
     ctx.fillStyle = lgd; ctx.fillRect(x + ip, cy + cardH * 0.5, leftW - ip * 1.4, Math.max(2, cardH * 0.012));
-    fit(ctx, j.horario || "--:--", leftW - ip * 1.4, cardH * 0.25, 900);
-    ctx.fillText(j.horario || "--:--", lcxx, cy + cardH * 0.7);
+    ctx.fillStyle = "#ffffff";
+    fit(ctx, j.horario || "--:--", leftW - ip * 1.4, cardH * 0.22, 900);
+    ctx.fillText(j.horario || "--:--", lcxx, cy + cardH * 0.64);
 
     // divisórias
     const div = (dx: number) => {
@@ -370,8 +371,8 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     ctx.fillText("X", mcx, by + box / 2);
     const conf = `${j.casa || ""} X ${j.visitante || ""}`.toUpperCase();
     const confW = colW - ip * 2;
-    fit(ctx, conf, confW, cardH * 0.13, 800);
-    ctx.fillText(conf, x + colW / 2, cy + cardH * 0.84);
+    fit(ctx, conf, confW, cardH * 0.12, 800);
+    ctx.fillText(conf, x + colW / 2, cy + cardH * 0.87);
 
     // direita: logo do canal
     if (j.canal) desenharCanal(ctx, j.canal, x + colW - rightW + ip * 0.6, cy + cardH * 0.1, rightW - ip * 1.2, cardH * 0.62);
