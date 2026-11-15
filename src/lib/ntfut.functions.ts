@@ -47,11 +47,14 @@ async function crest(src: string | null) {
   if (!url) return undefined;
   try {
     const r = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(7000) });
-    if (!r.ok || !r.headers.get("content-type")?.startsWith("image/")) return undefined;
+    if (!r.ok || !r.headers.get("content-type")?.startsWith("image/")) return url;
     const buf = await r.arrayBuffer();
-    if (buf.byteLength > 512000) return undefined;
-    return `data:${r.headers.get("content-type")};base64,${Buffer.from(buf).toString("base64")}`;
-  } catch { return undefined; }
+    if (buf.byteLength > 512000) return url;
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return `data:${r.headers.get("content-type")};base64,${btoa(bin)}`;
+  } catch { return url; }
 }
 
 export const prepareNtfutGames = createServerFn({ method: "POST" })
