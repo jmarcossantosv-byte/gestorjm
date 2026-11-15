@@ -67,12 +67,123 @@ function lerImagem(file: File, max: number): Promise<string> {
 
 function carregar(src?: string): Promise<HTMLImageElement | null> {
   if (!src) return Promise.resolve(null);
-  return new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+  return new Promise((res) => {
+    const i = new Image();
+    if (/^https?:/.test(src)) i.crossOrigin = "anonymous";
+    i.onload = () => res(i); i.onerror = () => res(null); i.src = src;
+  });
 }
 
-function fit(ctx: CanvasRenderingContext2D, text: string, maxW: number, size: number, weight = 800) {
+const FONT = "Manrope, sans-serif";
+
+function fit(ctx: CanvasRenderingContext2D, text: string, maxW: number, size: number, weight = 800, family = FONT) {
   let s = size;
-  do { ctx.font = `${weight} ${s}px Manrope, sans-serif`; s -= 2; } while (ctx.measureText(text).width > maxW && s > 10);
+  do { ctx.font = `${weight} ${s}px ${family}`; s -= 1; } while (ctx.measureText(text).width > maxW && s > 8);
+}
+
+// Quebra o texto em até maxLines linhas, reduzindo a fonte até caber em largura e altura.
+function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxH: number, size: number, maxLines: number, weight = 800) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  for (let s = size; s > 8; s -= 1) {
+    ctx.font = `${weight} ${s}px ${FONT}`;
+    const lines: string[] = [];
+    let cur = "";
+    for (const w of words) {
+      const t = cur ? `${cur} ${w}` : w;
+      if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+    }
+    if (cur) lines.push(cur);
+    const lh = s * 1.12;
+    if (lines.length <= maxLines && lines.every((l) => ctx.measureText(l).width <= maxW) && lines.length * lh <= maxH) return { lines, size: s, lh };
+  }
+  ctx.font = `${weight} 8px ${FONT}`;
+  return { lines: [text], size: 8, lh: 9 };
+}
+
+function drawLines(ctx: CanvasRenderingContext2D, r: { lines: string[]; lh: number }, cx: number, cy: number) {
+  const top = cy - (r.lines.length * r.lh) / 2 + r.lh / 2;
+  r.lines.forEach((l, i) => ctx.fillText(l, cx, top + i * r.lh));
+}
+
+function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+}
+
+// ===== Logos de canais (desenhadas em vetor) =====
+type Box = { x: number; y: number; w: number; h: number };
+function wordmark(ctx: CanvasRenderingContext2D, b: Box, text: string, color: string, weight = 900, italic = false, family = FONT) {
+  ctx.fillStyle = color;
+  fit(ctx, text, b.w, b.h * 0.8, weight, family);
+  if (italic) ctx.font = "italic " + ctx.font;
+  ctx.fillText(text, b.x + b.w / 2, b.y + b.h / 2);
+}
+function badge(ctx: CanvasRenderingContext2D, b: Box, text: string, bg: string, fg: string, italic = false) {
+  ctx.font = `900 ${b.h * 0.5}px ${FONT}`;
+  fit(ctx, text, b.w * 0.84, b.h * 0.5, 900);
+  const tw = Math.min(b.w, ctx.measureText(text).width + b.h * 0.6);
+  const bh = b.h * 0.72;
+  ctx.fillStyle = bg; rr(ctx, b.x + (b.w - tw) / 2, b.y + (b.h - bh) / 2, tw, bh, bh * 0.18); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.lineWidth = Math.max(1.5, bh * 0.05); ctx.stroke();
+  ctx.fillStyle = fg; if (italic) ctx.font = "italic " + ctx.font;
+  ctx.fillText(text, b.x + b.w / 2, b.y + b.h / 2);
+}
+
+const CANAIS: { re: RegExp; draw: (ctx: CanvasRenderingContext2D, b: Box) => void }[] = [
+  { re: /amazon|prime\s*video/i, draw: (ctx, b) => {
+    wordmark(ctx, { x: b.x, y: b.y, w: b.w, h: b.h * 0.42 }, "amazon", "#ffffff", 800);
+    wordmark(ctx, { x: b.x, y: b.y + b.h * 0.36, w: b.w * 0.8, h: b.h * 0.42 }, "prime", "#1ea7fd", 800);
+    ctx.strokeStyle = "#1ea7fd"; ctx.lineWidth = b.h * 0.05; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(b.x + b.w * 0.25, b.y + b.h * 0.86);
+    ctx.quadraticCurveTo(b.x + b.w * 0.5, b.y + b.h * 0.98, b.x + b.w * 0.75, b.y + b.h * 0.84); ctx.stroke();
+  } },
+  { re: /premiere/i, draw: (ctx, b) => badge(ctx, { x: b.x, y: b.y + b.h * 0.2, w: b.w, h: b.h * 0.6 }, "PREMIERE", "#0b8a3e", "#ffffff") },
+  { re: /disney/i, draw: (ctx, b) => {
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = b.h * 0.035;
+    ctx.beginPath(); ctx.ellipse(b.x + b.w * 0.55, b.y + b.h * 0.62, b.w * 0.42, b.h * 0.42, 0, Math.PI * 1.08, Math.PI * 1.9); ctx.stroke();
+    wordmark(ctx, { x: b.x, y: b.y + b.h * 0.25, w: b.w, h: b.h * 0.6 }, "Disney+", "#ffffff", 700, true, "Georgia, serif");
+  } },
+  { re: /youtube/i, draw: (ctx, b) => {
+    const ih = b.h * 0.42, iw = ih * 1.4, iy = b.y + (b.h - ih) / 2;
+    ctx.font = `800 ${b.h * 0.42}px ${FONT}`; fit(ctx, "YouTube", b.w - iw * 1.15, b.h * 0.42, 800);
+    const tw = ctx.measureText("YouTube").width; const sx = b.x + (b.w - (iw * 1.15 + tw)) / 2;
+    ctx.fillStyle = "#ff0000"; rr(ctx, sx, iy, iw, ih, ih * 0.25); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.moveTo(sx + iw * 0.4, iy + ih * 0.28); ctx.lineTo(sx + iw * 0.68, iy + ih / 2); ctx.lineTo(sx + iw * 0.4, iy + ih * 0.72); ctx.fill();
+    ctx.textAlign = "left"; ctx.fillText("YouTube", sx + iw * 1.15, b.y + b.h / 2); ctx.textAlign = "center";
+  } },
+  { re: /cazé|caze/i, draw: (ctx, b) => badge(ctx, b, "CAZÉTV", "#111111", "#ffd400", true) },
+  { re: /sportv/i, draw: (ctx, b) => badge(ctx, b, "sportv", "#00a651", "#ffffff", true) },
+  { re: /ge\s*tv|getv/i, draw: (ctx, b) => badge(ctx, b, "getv", "#0f9d58", "#ffffff") },
+  { re: /globoplay/i, draw: (ctx, b) => wordmark(ctx, b, "globoplay", "#ff3d3d", 800) },
+  { re: /globo/i, draw: (ctx, b) => badge(ctx, b, "globo", "#0069ff", "#ffffff") },
+  { re: /espn/i, draw: (ctx, b) => wordmark(ctx, b, "ESPN", "#ff1a1a", 900, true) },
+  { re: /hbo|\bmax\b/i, draw: (ctx, b) => wordmark(ctx, b, "max", "#2f6bff", 900) },
+  { re: /tnt/i, draw: (ctx, b) => badge(ctx, b, "TNT SPORTS", "#000000", "#ffffff") },
+  { re: /paramount/i, draw: (ctx, b) => wordmark(ctx, b, "Paramount+", "#4aa3ff", 800) },
+  { re: /star\s*\+|star plus/i, draw: (ctx, b) => wordmark(ctx, b, "star+", "#ffffff", 800, true) },
+  { re: /dazn/i, draw: (ctx, b) => badge(ctx, b, "DAZN", "#0c0c0c", "#ffffff") },
+  { re: /netflix/i, draw: (ctx, b) => wordmark(ctx, b, "NETFLIX", "#e50914", 900) },
+  { re: /\bband\b|bandsports/i, draw: (ctx, b) => badge(ctx, b, "BAND", "#e4002b", "#ffffff") },
+  { re: /record/i, draw: (ctx, b) => badge(ctx, b, "RECORD", "#1d4ed8", "#ffffff") },
+  { re: /\bsbt\b/i, draw: (ctx, b) => badge(ctx, b, "SBT", "#ffffff", "#1d4ed8") },
+  { re: /apple/i, draw: (ctx, b) => wordmark(ctx, b, "Apple TV", "#ffffff", 700) },
+];
+
+function desenharCanal(ctx: CanvasRenderingContext2D, canal: string, x: number, y: number, w: number, h: number) {
+  const partes = canal.split(/\s*[,/|]\s*|\s+e\s+/i).map((p) => p.trim()).filter(Boolean);
+  let logo: (typeof CANAIS)[number] | undefined; let usada = -1;
+  partes.some((p, i) => { const c = CANAIS.find((k) => k.re.test(p)); if (c) { logo = c; usada = i; return true; } return false; });
+  const resto = partes.filter((_, i) => i !== usada).join(" • ").toUpperCase();
+  ctx.fillStyle = "#ffffff";
+  if (logo) {
+    const lh = resto ? h * 0.5 : h * 0.62;
+    logo.draw(ctx, { x, y: y + (resto ? h * 0.02 : (h - lh) / 2), w, h: lh });
+    if (resto) {
+      ctx.fillStyle = "#ffffff";
+      drawLines(ctx, wrap(ctx, resto, w, h * 0.42, h * 0.15, 2, 800), x + w / 2, y + h * 0.76);
+    }
+  } else {
+    drawLines(ctx, wrap(ctx, canal.toUpperCase(), w, h * 0.8, h * 0.2, 3, 900), x + w / 2, y + h / 2);
+  }
 }
 
 async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, cfg: Config, jogos: Jogo[]) {
@@ -84,155 +195,186 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     carregar(cfg.fundo), carregar(cfg.logo),
     ...jogos.flatMap((j) => [carregar(j.escudoCasa), carregar(j.escudoVisitante)]),
   ]);
-  const cor = cfg.cor || "#16a34a";
+  const cor = cfg.cor || "#9333ea";
+  const U = Math.min(w, h);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
-  const W = (s: number) => Math.round(s);
-  const temFundo = !!fundo;
-  // fundo
-  const g = ctx.createLinearGradient(0, 0, w, h);
-  g.addColorStop(0, "#0a1526"); g.addColorStop(1, "#03060c");
+  // ===== fundo escuro com luzes neon =====
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#070b1e"); g.addColorStop(0.5, "#0b0f2a"); g.addColorStop(1, "#05071a");
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (fundo) {
     const s = Math.max(w / fundo.width, h / fundo.height);
+    ctx.globalAlpha = 0.45;
     ctx.drawImage(fundo, (w - fundo.width * s) / 2, (h - fundo.height * s) / 2, fundo.width * s, fundo.height * s);
-    const ov = ctx.createLinearGradient(0, 0, w, 0);
-    ov.addColorStop(0, "rgba(3,6,12,0.15)"); ov.addColorStop(0.45, "rgba(3,6,12,0.55)"); ov.addColorStop(1, "rgba(3,6,12,0.85)");
-    ctx.fillStyle = ov; ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
   }
-  const vg = ctx.createLinearGradient(0, h * 0.75, 0, h);
-  vg.addColorStop(0, "rgba(3,6,12,0)"); vg.addColorStop(1, "rgba(3,6,12,0.9)");
-  ctx.fillStyle = vg; ctx.fillRect(0, h * 0.75, w, h * 0.25);
+  const glow = (cx: number, cy: number, r: number, c: string, a: number) => {
+    const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    rg.addColorStop(0, c); rg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = a; ctx.fillStyle = rg; ctx.fillRect(cx - r, cy - r, r * 2, r * 2); ctx.globalAlpha = 1;
+  };
+  glow(w * 0.5, h * 0.45, Math.max(w, h) * 0.55, cor, 0.28);
+  glow(0, h, U * 0.7, "#1e90ff", 0.35);
+  glow(w, 0, U * 0.7, "#1e90ff", 0.35);
+  const streak = (x1: number, y1: number, x2: number, y2: number, c: string, lw: number) => {
+    const lg = ctx.createLinearGradient(x1, y1, x2, y2);
+    lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(0.5, c); lg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.strokeStyle = lg; ctx.lineWidth = lw; ctx.shadowColor = c; ctx.shadowBlur = lw * 4;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.shadowBlur = 0;
+  };
+  for (let i = 0; i < 3; i++) {
+    streak(-U * 0.1, U * (0.32 - i * 0.07), U * (0.32 - i * 0.07), -U * 0.1, i ? cor : "#4fa8ff", U * 0.006);
+    streak(w - U * (0.32 - i * 0.07), h + U * 0.1, w + U * 0.1, h - U * (0.32 - i * 0.07), i ? cor : "#4fa8ff", U * 0.006);
+  }
 
-  const pad = Math.round(Math.min(w, h) * 0.04);
-  const colX = temFundo && fmt !== "feed" ? w * (fmt === "paisagem" ? 0.36 : 0.42) : pad;
-  const colR = w - pad;
-  const colWAll = colR - colX;
-  const ccx = colX + colWAll / 2;
+  const pad = Math.round(U * 0.03);
   let y = pad;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
-  // logo
+  // ===== logo em círculo neon =====
+  const lr = Math.min(h * 0.062, w * 0.11);
+  const lcx = w / 2, lcy = y + lr;
+  ctx.shadowColor = cor; ctx.shadowBlur = lr * 0.5;
+  ctx.fillStyle = "#0a0a14"; ctx.beginPath(); ctx.arc(lcx, lcy, lr, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = cor; ctx.lineWidth = lr * 0.06; ctx.stroke(); ctx.shadowBlur = 0;
   if (logo) {
-    const lh = Math.min(h * 0.07, 140);
-    const lw = Math.min((logo.width / logo.height) * lh, colWAll * 0.7);
-    ctx.drawImage(logo, ccx - lw / 2, y, lw, (logo.height / logo.width) * lw);
-    y += lh + pad * 0.4;
+    const m = lr * 1.55, s = Math.min(m / logo.width, m / logo.height);
+    ctx.drawImage(logo, lcx - (logo.width * s) / 2, lcy - (logo.height * s) / 2, logo.width * s, logo.height * s);
+  } else {
+    ctx.fillStyle = "#ffffff"; fit(ctx, (cfg.titulo || "JOGOS").toUpperCase(), lr * 1.6, lr * 0.4, 900);
+    ctx.fillText((cfg.titulo || "JOGOS").toUpperCase(), lcx, lcy);
   }
+  y += lr * 2 + pad * 0.7;
 
-  // bloco de data
-  const [, mm = "", dd = ""] = data.split("-");
+  // ===== pílula da data =====
+  const meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  const [, mm = "1", dd = ""] = data.split("-");
   const dias = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
   const dia = dias[new Date(data + "T12:00:00").getDay()] ?? "";
-  const bh = Math.min(h * 0.075, colWAll * 0.2);
-  const bw = Math.min(colWAll * 0.75, bh * 4.2);
-  const bx = ccx - bw / 2;
-  ctx.fillStyle = cor;
-  ctx.beginPath(); ctx.roundRect(bx + bh * 0.6, y + bh * 0.08, bw - bh * 0.6, bh * 0.84, bh * 0.42); ctx.fill();
+  const bh = Math.min(h * 0.075, w * 0.14);
+  const bw = Math.min(w * 0.64, bh * 4.4);
+  const bx = (w - bw) / 2;
+  const pg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+  pg.addColorStop(0, cor); pg.addColorStop(1, "#5b21b6");
+  ctx.shadowColor = cor; ctx.shadowBlur = bh * 0.35;
+  ctx.fillStyle = pg; rr(ctx, bx + bh * 0.5, y + bh * 0.1, bw - bh * 0.5, bh * 0.8, bh * 0.4); ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = "rgba(255,200,120,0.8)"; ctx.lineWidth = bh * 0.025; ctx.stroke();
   ctx.fillStyle = "#ffffff"; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = bh * 0.2;
-  ctx.beginPath(); ctx.roundRect(bx, y, bh * 1.05, bh, bh * 0.15); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#0a0a0a"; ctx.font = `900 ${W(bh * 0.4)}px Manrope, sans-serif`;
-  ctx.fillText(dd, bx + bh * 0.525, y + bh * 0.3); ctx.fillText(mm, bx + bh * 0.525, y + bh * 0.72);
+  rr(ctx, bx, y, bh * 1.15, bh, bh * 0.18); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#0a0a0a";
+  fit(ctx, dd, bh * 0.95, bh * 0.5, 900); ctx.fillText(dd, bx + bh * 0.575, y + bh * 0.32);
+  const mes = meses[Number(mm) - 1] ?? "";
+  fit(ctx, mes, bh * 0.95, bh * 0.36, 900); ctx.fillText(mes, bx + bh * 0.575, y + bh * 0.73);
   ctx.fillStyle = "#ffffff";
   const titulo = (cfg.titulo && cfg.titulo !== "JOGOS DE HOJE" ? cfg.titulo : dia).toUpperCase();
-  fit(ctx, titulo, bw - bh * 1.4, bh * 0.55, 900);
-  ctx.fillText(titulo, bx + bh * 1.05 + (bw - bh * 1.05) / 2, y + bh * 0.52);
-  y += bh + pad * 0.7;
+  fit(ctx, titulo, bw - bh * 1.6, bh * 0.52, 900);
+  ctx.fillText(titulo, bx + bh * 1.15 + (bw - bh * 1.15) / 2, y + bh * 0.52);
+  y += bh + pad * 1.1;
 
-  // rodapé
-  const fSize = Math.round(Math.min(w, h) * 0.03);
-  const footerH = cfg.rodape ? fSize * 2.6 : 0;
+  // ===== rodapé com WhatsApp =====
+  const fs = Math.round(U * 0.036);
+  const footerH = cfg.rodape ? fs * 2.6 + pad * 0.6 : 0;
   const bottom = h - pad - footerH;
   if (cfg.rodape) {
-    ctx.font = `800 ${fSize}px Manrope, sans-serif`;
-    const tw = Math.min(ctx.measureText(cfg.rodape.toUpperCase()).width + fSize * 3, w - pad * 2);
-    const fy = h - pad - fSize * 2;
-    ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.strokeStyle = cor; ctx.lineWidth = Math.max(2, fSize * 0.1);
-    ctx.beginPath(); ctx.roundRect(w / 2 - tw / 2, fy, tw, fSize * 2, fSize); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#ffffff"; fit(ctx, cfg.rodape.toUpperCase(), tw - fSize * 2, fSize, 800);
-    ctx.fillText(cfg.rodape.toUpperCase(), w / 2, fy + fSize);
+    const txt = cfg.rodape.toUpperCase();
+    const fh = fs * 2.1;
+    fit(ctx, txt, w * 0.62, fs, 900);
+    const tw = Math.min(ctx.measureText(txt).width + fh * 1.9, w - pad * 2);
+    const fx = (w - tw) / 2, fy = h - pad - fh;
+    ctx.fillStyle = "rgba(5,7,26,0.85)"; ctx.strokeStyle = cor; ctx.lineWidth = fs * 0.12;
+    ctx.shadowColor = cor; ctx.shadowBlur = fs * 0.6;
+    rr(ctx, fx, fy, tw, fh, fh / 2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+    const ir = fh * 0.34, icx = fx + fh * 0.62, icy = fy + fh / 2;
+    ctx.fillStyle = "#25d366"; ctx.beginPath(); ctx.arc(icx, icy, ir, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(icx - ir * 0.75, icy + ir * 0.55); ctx.lineTo(icx - ir * 1.05, icy + ir * 1.05); ctx.lineTo(icx - ir * 0.35, icy + ir * 0.85); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = ir * 0.12; ctx.beginPath(); ctx.arc(icx, icy, ir * 0.68, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#ffffff"; rr(ctx, icx - ir * 0.3, icy - ir * 0.35, ir * 0.6, ir * 0.7, ir * 0.2); ctx.fill();
+    fit(ctx, txt, tw - fh * 1.5, fs, 900);
+    ctx.fillText(txt, fx + fh * 1.05 + (tw - fh * 1.05) / 2 - fh * 0.1, icy);
   }
 
-  // jogos
+  // ===== jogos =====
   const n = jogos.length;
   if (!n) {
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = `600 ${fSize}px Manrope, sans-serif`;
-    ctx.fillText("Adicione jogos no editor", ccx, (y + bottom) / 2);
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = `600 ${fs}px ${FONT}`;
+    ctx.fillText("Adicione jogos no editor", w / 2, (y + bottom) / 2);
     return;
   }
-  const cols = (fmt === "paisagem" && n > 4) || (fmt === "feed" && n > 5) ? 2 : 1;
+  const cols = (fmt === "paisagem" && n > 3) || (fmt === "feed" && n > 4) ? 2 : 1;
   const rows = Math.ceil(n / cols);
-  const gap = Math.round(pad * 0.45);
-  const colW = (colWAll - gap * (cols - 1)) / cols;
-  const rowH = Math.min((bottom - y - gap * (rows - 1)) / rows, colW * 0.36, h * 0.15);
-  const startY = y + Math.max(0, (bottom - y - (rowH * rows + gap * (rows - 1))) / 2);
+  const gap = Math.round(pad * 0.55);
+  const areaX = pad * 0.8, areaW = w - pad * 1.6;
+  const colW = (areaW - gap * (cols - 1)) / cols;
+  const cardH = Math.min((bottom - y - gap * (rows - 1)) / rows, colW * 0.27);
+  const startY = y + Math.max(0, (bottom - y - (cardH * rows + gap * (rows - 1))) / 2);
+  const sigla = (nome: string) => nome.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 3).toUpperCase();
 
   jogos.forEach((j, i) => {
     const c = cols === 2 ? i % 2 : 0;
     const r = cols === 2 ? Math.floor(i / 2) : i;
-    const x = colX + c * (colW + gap);
-    const ry = startY + r * (rowH + gap);
-    const cardY = ry + rowH * 0.32;
-    const cardH = rowH * 0.68;
-    // card
-    const cg = ctx.createLinearGradient(x, 0, x + colW, 0);
-    cg.addColorStop(0, cor); cg.addColorStop(1, "rgba(255,255,255,0.05)");
-    ctx.globalAlpha = 0.9; ctx.fillStyle = cor;
-    ctx.beginPath(); ctx.roundRect(x, cardY, colW, cardH, cardH * 0.25); ctx.fill();
-    ctx.globalAlpha = 0.35; ctx.fillStyle = "#000000";
-    ctx.beginPath(); ctx.roundRect(x, cardY, colW, cardH, cardH * 0.25); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = cg; ctx.globalAlpha = 0.5;
-    ctx.beginPath(); ctx.roundRect(x, cardY, colW, cardH, cardH * 0.25); ctx.fill();
-    ctx.globalAlpha = 1;
+    const x = areaX + c * (colW + gap);
+    const cy = startY + r * (cardH + gap);
+    const rad = cardH * 0.18;
 
-    // escudos
-    const box = rowH * 0.66;
-    const vsW = box * 0.35;
-    const b1 = x + colW * 0.5 - vsW / 2 - box;
-    const b2 = x + colW * 0.5 + vsW / 2;
-    const eC = escudos[i * 2], eV = escudos[i * 2 + 1];
-    const sigla = (nome: string) => nome.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 3).toUpperCase();
-    ([[b1, eC, j.casa], [b2, eV, j.visitante]] as [number, HTMLImageElement | null, string][]).forEach(([bxN, im, nome]) => {
-      ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = box * 0.12; ctx.shadowOffsetY = box * 0.04;
-      ctx.fillStyle = "#f4f6f8";
-      ctx.beginPath(); ctx.roundRect(bxN, ry, box, box, box * 0.18); ctx.fill();
-      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    // card roxo com borda neon
+    const cg = ctx.createLinearGradient(x, cy, x + colW, cy + cardH);
+    cg.addColorStop(0, "rgba(88,28,135,0.95)"); cg.addColorStop(0.5, "rgba(46,16,101,0.92)"); cg.addColorStop(1, "rgba(88,28,135,0.95)");
+    ctx.shadowColor = cor; ctx.shadowBlur = cardH * 0.12;
+    ctx.fillStyle = cg; rr(ctx, x, cy, colW, cardH, rad); ctx.fill();
+    ctx.globalAlpha = 0.35; ctx.fillStyle = cor; rr(ctx, x, cy, colW, cardH, rad); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(216,180,254,0.9)"; ctx.lineWidth = Math.max(2, cardH * 0.012); rr(ctx, x, cy, colW, cardH, rad); ctx.stroke();
+
+    const leftW = colW * 0.26, rightW = colW * 0.22, midX = x + leftW, midW = colW - leftW - rightW;
+    const ip = cardH * 0.07;
+
+    // esquerda: campeonato + linha dourada + horário
+    const lcxx = x + leftW / 2 + ip * 0.3;
+    ctx.fillStyle = "#ffffff";
+    const camp = wrap(ctx, (j.campeonato || "").toUpperCase(), leftW - ip * 1.4, cardH * 0.36, cardH * 0.12, 3, 800);
+    drawLines(ctx, camp, lcxx, cy + cardH * 0.27);
+    const lgd = ctx.createLinearGradient(x + ip, 0, x + leftW - ip * 0.4, 0);
+    lgd.addColorStop(0, "rgba(251,191,36,0)"); lgd.addColorStop(0.5, "#fbbf24"); lgd.addColorStop(1, "rgba(251,191,36,0)");
+    ctx.fillStyle = lgd; ctx.fillRect(x + ip, cy + cardH * 0.5, leftW - ip * 1.4, Math.max(2, cardH * 0.012));
+    fit(ctx, j.horario || "--:--", leftW - ip * 1.4, cardH * 0.25, 900);
+    ctx.fillText(j.horario || "--:--", lcxx, cy + cardH * 0.7);
+
+    // divisórias
+    const div = (dx: number) => {
+      const dg = ctx.createLinearGradient(0, cy + cardH * 0.15, 0, cy + cardH * 0.7);
+      dg.addColorStop(0, "rgba(251,191,36,0)"); dg.addColorStop(0.5, "#fbbf24"); dg.addColorStop(1, "rgba(251,191,36,0)");
+      ctx.fillStyle = dg; ctx.fillRect(dx, cy + cardH * 0.15, Math.max(2, cardH * 0.01), cardH * 0.55);
+    };
+    div(x + colW - rightW);
+
+    // centro: escudos + X + confronto
+    const box = cardH * 0.6;
+    const mcx = midX + midW / 2;
+    const xw = box * 0.55;
+    const by = cy + cardH * 0.06;
+    const pos = [mcx - xw / 2 - box, mcx + xw / 2];
+    ([[pos[0], escudos[i * 2], j.casa], [pos[1], escudos[i * 2 + 1], j.visitante]] as [number, HTMLImageElement | null, string][]).forEach(([ex, im, nome]) => {
       if (im) {
-        const m = box * 0.72; const s = Math.min(m / im.width, m / im.height);
-        ctx.drawImage(im, bxN + (box - im.width * s) / 2, ry + (box - im.height * s) / 2, im.width * s, im.height * s);
+        const s = Math.min(box / im.width, box / im.height);
+        ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = box * 0.1; ctx.shadowOffsetY = box * 0.03;
+        ctx.drawImage(im, ex + (box - im.width * s) / 2, by + (box - im.height * s) / 2, im.width * s, im.height * s);
+        ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
       } else if (nome.trim()) {
-        ctx.fillStyle = "#0a1526";
-        fit(ctx, sigla(nome), box * 0.8, box * 0.34, 900);
-        ctx.fillText(sigla(nome), bxN + box / 2, ry + box / 2);
+        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = box * 0.03;
+        ctx.beginPath(); ctx.arc(ex + box / 2, by + box / 2, box * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#ffffff"; fit(ctx, sigla(nome), box * 0.7, box * 0.3, 900);
+        ctx.fillText(sigla(nome), ex + box / 2, by + box / 2);
       }
     });
-    ctx.fillStyle = "#ffffff"; ctx.font = `italic 900 ${W(box * 0.28)}px Manrope, sans-serif`;
-    ctx.fillText("VS", x + colW / 2, ry + box * 0.55);
-
-    // esquerda: campeonato + horário
-    const leftW = b1 - x - rowH * 0.12;
-    const lcx = x + leftW / 2 + rowH * 0.06;
-    const midY = cardY + cardH * 0.38;
-    ctx.fillStyle = "#ffffff";
-    fit(ctx, (j.campeonato || "").toUpperCase(), leftW * 0.92, rowH * 0.1, 800);
-    ctx.fillText((j.campeonato || "").toUpperCase(), lcx, midY - rowH * 0.12);
-    fit(ctx, j.horario || "--:--", leftW * 0.92, rowH * 0.2, 900);
-    ctx.fillText(j.horario || "--:--", lcx, midY + rowH * 0.06);
-
-    // direita: canal
-    const rightX = b2 + box + rowH * 0.06;
-    const rightW = x + colW - rightX - rowH * 0.06;
-    if (j.canal) {
-      fit(ctx, j.canal.toUpperCase(), rightW * 0.95, rowH * 0.15, 900);
-      ctx.font = ctx.font.replace(/^/, "italic ");
-      ctx.fillText(j.canal.toUpperCase(), rightX + rightW / 2, midY);
-    }
-
-    // confronto
+    ctx.fillStyle = "#ffffff"; ctx.font = `900 ${Math.round(box * 0.42)}px ${FONT}`;
+    ctx.fillText("X", mcx, by + box / 2);
     const conf = `${j.casa || ""} X ${j.visitante || ""}`.toUpperCase();
-    fit(ctx, conf, colW * 0.8, rowH * 0.12, 800);
-    ctx.fillText(conf, x + colW / 2, cardY + cardH * 0.82);
+    const confW = colW - ip * 2;
+    fit(ctx, conf, confW, cardH * 0.13, 800);
+    ctx.fillText(conf, x + colW / 2, cy + cardH * 0.84);
+
+    // direita: logo do canal
+    if (j.canal) desenharCanal(ctx, j.canal, x + colW - rightW + ip * 0.6, cy + cardH * 0.1, rightW - ip * 1.2, cardH * 0.62);
   });
 }
 
@@ -240,7 +382,7 @@ const vazio: Jogo = { id: "", campeonato: "", casa: "", visitante: "", horario: 
 
 function Banner() {
   const [data, setData] = useState(todayISO());
-  const [cfg, setCfg] = useState<Config>({ titulo: "JOGOS DE HOJE", cor: "#16a34a", rodape: "" });
+  const [cfg, setCfg] = useState<Config>({ titulo: "JOGOS DE HOJE", cor: "#9333ea", rodape: "" });
   const [jogos, setJogos] = useState<Jogo[]>([]);
   const [pronto, setPronto] = useState(false);
   const [fmt, setFmt] = useState<Formato>("story");
