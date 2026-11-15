@@ -7,3 +7,6 @@
 ## Marca — pedido anterior, adiado para manter o escopo atual
 - [x] Salvar configurações e logo com acesso exclusivo por usuário.
 - Página, visual e padrões de marca ainda não implementados; não fazem parte da busca de jogos atual.
+## Banner modelo JM Play
+- [x] Corrigir escudos que não carregavam no site publicado.
+- [x] Novo visual roxo neon idêntico ao modelo, com logos dos canais e nomes ajustados ao espaço.
