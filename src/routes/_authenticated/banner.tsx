@@ -8,6 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AppHeader, Field, addDays, fmtDate, todayISO } from "@/components/painel-shared";
 import { BannerFootball } from "@/components/banner-football";
 import { mergeGames, type FootballGame } from "@/lib/football";
+import JSZip from "jszip";
+import { bannerWeekday, canAddGame, downloadBanner, paginateGames } from "@/lib/banner-pages";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/_authenticated/banner")({
   head: () => ({
@@ -186,7 +190,7 @@ function desenharCanal(ctx: CanvasRenderingContext2D, canal: string, x: number, 
   }
 }
 
-async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, cfg: Config, jogos: Jogo[]) {
+async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, cfg: Config, jogos: Jogo[], page = 0, total = 1) {
   const { w, h } = FORMATOS[fmt];
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d");
@@ -249,10 +253,9 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
   // ===== pílula da data =====
   const meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   const [, mm = "1", dd = ""] = data.split("-");
-  const dias = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"];
-  const dia = dias[new Date(data + "T12:00:00").getDay()] ?? "";
+  const dia = bannerWeekday(data);
   const bh = Math.min(h * 0.075, w * 0.14);
-  const bw = Math.min(w * 0.64, bh * 4.4);
+  const bw = Math.min(w * 0.82, bh * 5.4);
   const bx = (w - bw) / 2;
   const pg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
   pg.addColorStop(0, cor); pg.addColorStop(1, "#5b21b6");
@@ -266,10 +269,21 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
   const mes = meses[Number(mm) - 1] ?? "";
   fit(ctx, mes, bh * 0.95, bh * 0.36, 900); ctx.fillText(mes, bx + bh * 0.575, y + bh * 0.73);
   ctx.fillStyle = "#ffffff";
-  const titulo = (cfg.titulo && cfg.titulo !== "JOGOS DE HOJE" ? cfg.titulo : dia).toUpperCase();
+  const titulo = dia;
   fit(ctx, titulo, bw - bh * 1.6, bh * 0.52, 900);
   ctx.fillText(titulo, bx + bh * 1.15 + (bw - bh * 1.15) / 2, y + bh * 0.52);
-  y += bh + pad * 1.1;
+  y += bh + pad * 0.65;
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  const subtitulo = (cfg.titulo === "JOGOS DE HOJE" ? "JOGOS DO DIA" : cfg.titulo || "JOGOS DO DIA").toUpperCase();
+  fit(ctx, subtitulo, w - pad * 2, U * 0.024, 700);
+  ctx.fillText(subtitulo, w / 2, y);
+  y += U * 0.024 + pad * 0.75;
+  if (total > 1) {
+    ctx.save(); ctx.textAlign = "right"; ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.font = `700 ${U * 0.023}px ${FONT}`;
+    ctx.fillText(`${page + 1}/${total}`, w - pad, h - pad * 0.5);
+    ctx.restore();
+  }
 
   // ===== rodapé com WhatsApp =====
   const fs = Math.round(U * 0.036);
@@ -300,12 +314,12 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     ctx.fillText("Adicione jogos no editor", w / 2, (y + bottom) / 2);
     return;
   }
-  const cols = (fmt === "paisagem" && n > 3) || (fmt === "feed" && n > 4) ? 2 : 1;
+  const cols = fmt === "paisagem" && n > 3 ? 2 : 1;
   const rows = Math.ceil(n / cols);
-  const gap = Math.round(pad * 0.55);
+  const gap = Math.round(pad * (fmt === "story" ? 1.0 : 0.4));
   const areaX = pad * 0.8, areaW = w - pad * 1.6;
   const colW = (areaW - gap * (cols - 1)) / cols;
-  const cardH = Math.min((bottom - y - gap * (rows - 1)) / rows, colW * 0.27);
+  const cardH = Math.min((bottom - y - gap * (rows - 1)) / rows, colW * 0.25);
   const startY = y + Math.max(0, (bottom - y - (cardH * rows + gap * (rows - 1))) / 2);
   const sigla = (nome: string) => nome.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 3).toUpperCase();
 
@@ -314,7 +328,7 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     const r = cols === 2 ? Math.floor(i / 2) : i;
     const x = areaX + c * (colW + gap);
     const cy = startY + r * (cardH + gap);
-    const rad = cardH * 0.18;
+    const rad = cardH * 0.13;
 
     // card roxo com borda neon
     const cg = ctx.createLinearGradient(x, cy, x + colW, cy + cardH);
@@ -331,14 +345,14 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     // esquerda: campeonato + linha dourada + horário
     const lcxx = x + leftW / 2 + ip * 0.3;
     ctx.fillStyle = "#ffffff";
-    const camp = wrap(ctx, (j.campeonato || "").toUpperCase(), leftW - ip * 1.4, cardH * 0.36, cardH * 0.12, 3, 800);
-    drawLines(ctx, camp, lcxx, cy + cardH * 0.27);
+    const camp = wrap(ctx, (j.campeonato || "").toUpperCase(), leftW - ip * 1.4, cardH * 0.31, cardH * 0.105, 3, 800);
+    drawLines(ctx, camp, lcxx, cy + cardH * 0.23);
     const lgd = ctx.createLinearGradient(x + ip, 0, x + leftW - ip * 0.4, 0);
     lgd.addColorStop(0, "rgba(251,191,36,0)"); lgd.addColorStop(0.5, "#fbbf24"); lgd.addColorStop(1, "rgba(251,191,36,0)");
-    ctx.fillStyle = lgd; ctx.fillRect(x + ip, cy + cardH * 0.5, leftW - ip * 1.4, Math.max(2, cardH * 0.012));
+    ctx.fillStyle = lgd; ctx.fillRect(x + ip, cy + cardH * 0.42, leftW - ip * 1.4, Math.max(2, cardH * 0.012));
     ctx.fillStyle = "#ffffff";
-    fit(ctx, j.horario || "--:--", leftW - ip * 1.4, cardH * 0.22, 900);
-    ctx.fillText(j.horario || "--:--", lcxx, cy + cardH * 0.64);
+    fit(ctx, j.horario || "--:--", leftW - ip * 1.4, cardH * 0.29, 900);
+    ctx.fillText(j.horario || "--:--", lcxx, cy + cardH * 0.60);
 
     // divisórias
     const div = (dx: number) => {
@@ -348,31 +362,37 @@ async function desenhar(canvas: HTMLCanvasElement, fmt: Formato, data: string, c
     };
     div(x + colW - rightW);
 
-    // centro: escudos + X + confronto
-    const box = cardH * 0.6;
+    // Escudos em suportes brancos, preservando a proporção de cada imagem.
+    const box = Math.min(cardH * 0.58, midW / 2.7);
     const mcx = midX + midW / 2;
     const xw = box * 0.55;
     const by = cy + cardH * 0.06;
-    const pos = [mcx - xw / 2 - box, mcx + xw / 2];
-    ([[pos[0], escudos[i * 2], j.casa], [pos[1], escudos[i * 2 + 1], j.visitante]] as [number, HTMLImageElement | null, string][]).forEach(([ex, im, nome]) => {
+    const positions = [mcx - xw / 2 - box, mcx + xw / 2];
+    positions.forEach((ex, index) => {
+      const im = escudos[i * 2 + index];
+      const nome = index === 0 ? j.casa : j.visitante;
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = box * 0.09; ctx.shadowOffsetY = box * 0.04;
+      ctx.fillStyle = "#ffffff"; rr(ctx, ex, by, box, box, box * 0.12); ctx.fill();
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
       if (im) {
-        const s = Math.min(box / im.width, box / im.height);
-        ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = box * 0.1; ctx.shadowOffsetY = box * 0.03;
-        ctx.drawImage(im, ex + (box - im.width * s) / 2, by + (box - im.height * s) / 2, im.width * s, im.height * s);
-        ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        const inner = box * 0.82;
+        const scale = Math.min(inner / im.width, inner / im.height);
+        ctx.drawImage(im, ex + (box - im.width * scale) / 2, by + (box - im.height * scale) / 2, im.width * scale, im.height * scale);
       } else if (nome.trim()) {
-        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = box * 0.03;
-        ctx.beginPath(); ctx.arc(ex + box / 2, by + box / 2, box * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#ffffff"; fit(ctx, sigla(nome), box * 0.7, box * 0.3, 900);
+        ctx.fillStyle = "#351453"; fit(ctx, sigla(nome), box * 0.72, box * 0.3, 900);
         ctx.fillText(sigla(nome), ex + box / 2, by + box / 2);
       }
+      ctx.restore();
     });
-    ctx.fillStyle = "#ffffff"; ctx.font = `900 ${Math.round(box * 0.42)}px ${FONT}`;
-    ctx.fillText("X", mcx, by + box / 2);
+    ctx.save(); ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#d8b4fe"; ctx.shadowBlur = box * 0.08;
+    fit(ctx, "VS", xw * 0.9, box * 0.29, 900); ctx.font = "italic " + ctx.font;
+    ctx.fillText("VS", mcx, by + box / 2); ctx.restore();
     const conf = `${j.casa || ""} X ${j.visitante || ""}`.toUpperCase();
     const confW = colW - ip * 2;
-    fit(ctx, conf, confW, cardH * 0.12, 800);
-    ctx.fillText(conf, x + colW / 2, cy + cardH * 0.87);
+    ctx.fillStyle = "#ffffff";
+    const names = wrap(ctx, conf, confW, cardH * 0.22, cardH * 0.12, 2, 900);
+    drawLines(ctx, names, x + colW / 2, cy + cardH * 0.85);
 
     // direita: logo do canal
     if (j.canal) desenharCanal(ctx, j.canal, x + colW - rightW + ip * 0.6, cy + cardH * 0.1, rightW - ip * 1.2, cardH * 0.62);
@@ -388,6 +408,10 @@ function Banner() {
   const [pronto, setPronto] = useState(false);
   const [fmt, setFmt] = useState<Formato>("story");
   const [edit, setEdit] = useState<Jogo | null>(null);
+  const [page, setPage] = useState(0);
+  const [exports, setExports] = useState<{ pngs: Blob[]; all: Blob } | null>(null);
+  const pages = paginateGames(jogos);
+  const currentPage = Math.min(page, pages.length - 1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => { setCfg((c) => load(CFG_KEY, c)); setPronto(true); }, []);
@@ -396,17 +420,37 @@ function Banner() {
 
   function salvarJogos(lista: Jogo[]) { setJogos(lista); save(jogosKey(data), lista); }
 
+  useEffect(() => { setPage(0); }, [data]);
+
   useEffect(() => {
-    if (!canvasRef.current) return;
     let ativo = true;
-    const c = document.createElement("canvas");
-    document.fonts?.ready.then(() => desenhar(c, fmt, data, cfg, jogos)).then(() => {
-      const t = canvasRef.current;
-      if (!ativo || !t) return;
-      t.width = c.width; t.height = c.height; t.getContext("2d")?.drawImage(c, 0, 0);
-    });
+    setExports(null);
+    async function renderPages() {
+      await document.fonts.ready;
+      const groups = paginateGames(jogos);
+      const pngs: Blob[] = [];
+      for (const [index, games] of groups.entries()) {
+        const c = document.createElement("canvas");
+        await desenhar(c, fmt, data, cfg, games, index, groups.length);
+        if (!ativo) return;
+        if (index === currentPage) {
+          const t = canvasRef.current;
+          if (t) { t.width = c.width; t.height = c.height; t.getContext("2d")?.drawImage(c, 0, 0); }
+        }
+        pngs.push(await new Promise<Blob>((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error("PNG indisponível")), "image/png")));
+      }
+      let all = pngs[0];
+      if (!all) return;
+      if (pngs.length > 1) {
+        const zip = new JSZip();
+        pngs.forEach((blob, index) => zip.file(`banner-${fmt}-${data}-pagina-${index + 1}.png`, blob));
+        all = await zip.generateAsync({ type: "blob", compression: "STORE" });
+      }
+      if (ativo) setExports({ pngs, all });
+    }
+    renderPages().catch(() => { if (ativo) toast.error("Não foi possível preparar a imagem. Tente novamente."); });
     return () => { ativo = false; };
-  }, [fmt, data, cfg, jogos]);
+  }, [fmt, data, cfg, jogos, currentPage]);
 
   function duplicarOntem() {
     const ontem = load<Jogo[]>(jogosKey(addDays(data, -1)), []);
@@ -417,22 +461,18 @@ function Banner() {
 
   function importarJogos(incoming: FootballGame[], selectedDate: string) {
     const previous = selectedDate === data ? jogos : load<Jogo[]>(jogosKey(selectedDate), []);
-    const merged = mergeGames<Jogo>(previous, incoming.map((game) => ({ ...game, id: crypto.randomUUID() })));
+    const merged = mergeGames<Jogo>(previous, incoming.map((game) => ({ ...game, id: crypto.randomUUID() })), Infinity);
     save(jogosKey(selectedDate), merged.games);
     if (selectedDate === data) setJogos(merged.games);
-    if (merged.omitted) toast.warning(`O banner comporta 10 jogos. ${merged.omitted} jogo(s) não foram incluídos.`);
-    else toast.success("Jogos carregados.");
+    toast.success("Jogos carregados.");
   }
 
-  function baixar() {
-    canvasRef.current?.toBlob((b) => {
-      if (!b) return;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(b);
-      a.download = `banner-${fmt}-${data}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    }, "image/png");
+  function baixar(all = false) {
+    const blob = all ? exports?.all : exports?.pngs[currentPage];
+    if (!blob) return;
+    const extension = all && pages.length > 1 ? "zip" : "png";
+    const suffix = all && pages.length > 1 ? "todas" : `pagina-${currentPage + 1}`;
+    downloadBanner(blob, `banner-${fmt}-${data}-${suffix}.${extension}`);
   }
 
   async function copiar() {
@@ -450,6 +490,7 @@ function Banner() {
 
   function salvarJogo() {
     if (!edit) return;
+    if (!edit.id && !canAddGame(jogos.length)) { toast.error("Limite de 5 jogos por banner"); return; }
     if (!edit.casa || !edit.visitante) { toast.error("Preencha os dois times."); return; }
     if (edit.id) salvarJogos(jogos.map((j) => (j.id === edit.id ? edit : j)));
     else salvarJogos([...jogos, { ...edit, id: crypto.randomUUID() }]);
@@ -468,12 +509,12 @@ function Banner() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background max-sm:[&_header_nav]:gap-0 max-sm:[&_header_nav_a]:px-2">
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-6">
         <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Gerador de Banner</h1>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="space-y-4">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+          <section className="min-w-0 space-y-4">
             <BannerFootball date={data} onDate={setData} onGames={importarJogos} />
             <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-soft">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -487,14 +528,15 @@ function Banner() {
             </div>
             <div className="space-y-3 rounded-2xl border bg-card p-4 shadow-soft">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-bold">Jogos ({jogos.length}/10)</h2>
-                <div className="flex gap-2">
+                <h2 className="font-bold">Jogos ({jogos.length})</h2>
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={duplicarOntem}><CalendarClock /> Duplicar de ontem</Button>
-                  <Button size="sm" disabled={jogos.length >= 10} onClick={() => setEdit({ ...vazio })}><Plus /> Adicionar</Button>
+                  <Button size="sm" disabled={!canAddGame(jogos.length)} onClick={() => setEdit({ ...vazio })}><Plus /> Adicionar jogo</Button>
                 </div>
               </div>
+              {!canAddGame(jogos.length) && <p role="status" className="text-sm text-muted-foreground">Limite de 5 jogos por banner</p>}
               {!jogos.length && <p className="text-sm text-muted-foreground">Nenhum jogo nesta data.</p>}
-              {jogos.map((j) => (
+              {pages.flat().map((j) => (
                 <div key={j.id} className="flex items-center justify-between gap-2 rounded-xl border p-3">
                   <div className="min-w-0">
                     <p className="flex items-center gap-1.5 font-semibold">
@@ -507,15 +549,15 @@ function Banner() {
                     <p className="truncate text-xs text-muted-foreground">{[j.campeonato, j.horario, j.canal].filter(Boolean).join(" • ")}</p>
                   </div>
                   <div className="flex shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => setEdit(j)}><Pencil /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => salvarJogos(jogos.filter((x) => x.id !== j.id))}><Trash2 /></Button>
+                    <Button variant="ghost" size="icon" aria-label={`Editar ${j.casa}`} onClick={() => setEdit(j)}><Pencil /></Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" aria-label={`Remover ${j.casa}`} onClick={() => salvarJogos(jogos.filter((x) => x.id !== j.id))}><Trash2 /></Button>
                   </div>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+          <section className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:self-start">
             <div className="flex flex-wrap gap-2">
               {(Object.keys(FORMATOS) as Formato[]).map((k) => (
                 <Button key={k} size="sm" variant={fmt === k ? "default" : "outline"} onClick={() => setFmt(k)}>
@@ -523,12 +565,23 @@ function Banner() {
                 </Button>
               ))}
             </div>
-            <div className="flex justify-center rounded-2xl border bg-card p-3 shadow-soft">
-              <canvas ref={canvasRef} className="h-auto max-h-[70vh] w-auto max-w-full rounded-lg" />
+            {pages.length > 1 && <Tabs value={String(currentPage)} onValueChange={v => setPage(Number(v))}>
+              <TabsList className="h-auto max-w-full flex-wrap justify-start">
+                {pages.map((_, index) => <TabsTrigger key={index} value={String(index)}>Página {index + 1}</TabsTrigger>)}
+              </TabsList>
+            </Tabs>}
+            <div className="flex justify-center rounded-2xl border bg-card p-3 shadow-soft" aria-busy={!exports}>
+              <canvas aria-label={`Prévia do banner, página ${currentPage + 1} de ${pages.length}`} ref={canvasRef} className="h-auto max-h-[70vh] w-auto max-w-full rounded-lg" />
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1" onClick={baixar}><Download /> Baixar PNG</Button>
-              <Button className="flex-1" variant="outline" onClick={copiar}><Copy /> Copiar imagem</Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button className="flex-1" disabled={!exports}><Download /> {exports ? "Baixar" : "Preparando…"}</Button></DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => baixar()}>Página atual (PNG)</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => baixar(true)}>Todas as páginas ({pages.length > 1 ? "ZIP" : "PNG"})</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button className="flex-1" variant="outline" disabled={!exports} onClick={copiar}><Copy /> Copiar imagem</Button>
             </div>
           </section>
         </div>

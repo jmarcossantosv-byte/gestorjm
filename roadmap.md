@@ -1,8 +1,11 @@
 # Gerador de Banner e marca
+- [x] Ajustar cards e cabeçalho, mantendo identidade e formulário existentes.
+- [x] Dividir por horário em páginas de 5 e disponibilizar PNG atual/ZIP completo.
+- [x] Testar limite, importação real, páginas, três formatos e downloads no painel conectado.
 - [x] Adicionar meus times persistidos por usuário e busca API-Football protegida.
 - [x] Buscar jogos por data/time com cache de 6 horas e edição manual preservada.
 - [x] Verificar busca real, persistência dos times, cache protegido, mensagem de restrição do plano e PNG manual.
-- [ ] Validar importação com jogos reais: API restringiu as datas consultadas no plano da conta; aguarda cobertura permitida pela API.
+- [x] Validar importação com jogos reais: fonte antiga substituída pelo ntfut; importação real e PNG/ZIP verificados.
 
 ## Marca — pedido anterior, adiado para manter o escopo atual
 - [x] Salvar configurações e logo com acesso exclusivo por usuário.

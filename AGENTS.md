@@ -14,3 +14,4 @@
 - Store favorites and query caches per user under RLS; cache successful empty fixtures too to avoid spending quota on repeat empty searches.
 - Convert provider team crests to bounded data URLs server-side with a fixed host/path allowlist so canvas exports remain safe without cross-origin dependencies.
 - Keep automatic fixture import in the banner feature; merge by provider fixture ID and retain manually entered channels and games.
+- Banner pagination is browser-only and sorts all saved/imported games into five-game pages without truncating imports; prepare PNG/ZIP blobs before download clicks to preserve browser user activation.
