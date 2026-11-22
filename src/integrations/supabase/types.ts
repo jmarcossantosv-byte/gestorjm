@@ -94,6 +94,83 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_orders: {
+        Row: {
+          access_token: string
+          amount: number
+          attempt: number
+          cliente_id: string
+          collector_id: string
+          created_at: string
+          currency: string
+          duration_days: number
+          id: string
+          link_expires_at: string
+          mp_payment_id: string | null
+          paid_at: string | null
+          pix_expires_at: string | null
+          plan_name: string
+          qr_base64: string | null
+          qr_code: string | null
+          renewed_until: string | null
+          requesting_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          amount: number
+          attempt?: number
+          cliente_id: string
+          collector_id: string
+          created_at?: string
+          currency?: string
+          duration_days: number
+          id?: string
+          link_expires_at?: string
+          mp_payment_id?: string | null
+          paid_at?: string | null
+          pix_expires_at?: string | null
+          plan_name: string
+          qr_base64?: string | null
+          qr_code?: string | null
+          renewed_until?: string | null
+          requesting_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          amount?: number
+          attempt?: number
+          cliente_id?: string
+          collector_id?: string
+          created_at?: string
+          currency?: string
+          duration_days?: number
+          id?: string
+          link_expires_at?: string
+          mp_payment_id?: string | null
+          paid_at?: string | null
+          pix_expires_at?: string | null
+          plan_name?: string
+          qr_base64?: string | null
+          qr_code?: string | null
+          renewed_until?: string | null
+          requesting_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_orders_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           created_at: string
@@ -252,8 +329,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mercadopago_credentials: {
+        Row: {
+          collector_id: string
+          is_test: boolean
+          token_ciphertext: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          collector_id: string
+          is_test?: boolean
+          token_ciphertext: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          collector_id?: string
+          is_test?: boolean
+          token_ciphertext?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pagamentos: {
         Row: {
+          checkout_order_id: string | null
           cliente_id: string
           created_at: string
           data_pagamento: string
@@ -264,6 +366,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          checkout_order_id?: string | null
           cliente_id: string
           created_at?: string
           data_pagamento?: string
@@ -274,6 +377,7 @@ export type Database = {
           valor?: number
         }
         Update: {
+          checkout_order_id?: string | null
           cliente_id?: string
           created_at?: string
           data_pagamento?: string
@@ -284,6 +388,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "pagamentos_checkout_order_id_fkey"
+            columns: ["checkout_order_id"]
+            isOneToOne: true
+            referencedRelation: "checkout_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pagamentos_cliente_id_fkey"
             columns: ["cliente_id"]
@@ -331,6 +442,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_checkout_payment: {
+        Args: {
+          _amount: number
+          _collector_id: string
+          _currency: string
+          _order_id: string
+          _paid_at: string
+          _payment_id: string
+          _status: string
+        }
+        Returns: boolean
+      }
       registrar_pagamento: {
         Args: {
           _cliente_id: string
@@ -341,6 +464,7 @@ export type Database = {
         }
         Returns: string
       }
+      reserve_pix_attempt: { Args: { _order_id: string }; Returns: number }
     }
     Enums: {
       cliente_status: "ativo" | "vencido" | "suspenso"

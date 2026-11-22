@@ -50,6 +50,13 @@
       "when": 1792581170232,
       "tag": "0006_football_leagues",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795316878098,
+      "tag": "0007_mercadopago_checkout_individual",
+      "breakpoints": true
     }
   ]
 }

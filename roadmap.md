@@ -15,6 +15,6 @@
 - [x] Novo visual roxo neon idêntico ao modelo, com logos dos canais e nomes ajustados ao espaço.
 
 ## Checkout Pix Mercado Pago
-- [ ] Conectar Mercado Pago com entrada segura da chave API; aguarda conexão do usuário.
+- [ ] Cadastrar chave Mercado Pago própria por administrador dentro do painel, com criptografia e validação.
 - [ ] Criar link individual, página de Pix e confirmação segura com renovação única.
 - [ ] Verificar checkout e renovação; compra real será realizada pelo usuário.
