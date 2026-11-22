@@ -13,3 +13,8 @@
 ## Banner modelo JM Play
 - [x] Corrigir escudos que não carregavam no site publicado.
 - [x] Novo visual roxo neon idêntico ao modelo, com logos dos canais e nomes ajustados ao espaço.
+
+## Checkout Pix Mercado Pago
+- [ ] Conectar Mercado Pago com entrada segura da chave API; aguarda conexão do usuário.
+- [ ] Criar link individual, página de Pix e confirmação segura com renovação única.
+- [ ] Verificar checkout e renovação; compra real será realizada pelo usuário.
