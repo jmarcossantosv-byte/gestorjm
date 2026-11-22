@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dateSchema, gameSchema } from "./football";
-import { cleanCompetition, gameId, isFootball, ntfutGameSchema, type NtfutGame } from "./ntfut";
+import { cleanCompetition, gameId, isFootball, ntfutSelectionSchema, type NtfutGame } from "./ntfut";
 
 const feedItem = z.object({
   competicao: z.string(), horario: z.string(), time1: z.string(), time2: z.string(),
@@ -59,7 +59,7 @@ async function crest(src: string | null) {
 
 export const prepareNtfutGames = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ games: z.array(ntfutGameSchema).max(10) }))
+  .inputValidator(ntfutSelectionSchema)
   .handler(async ({ data }) => {
     const games: z.infer<typeof gameSchema>[] = await Promise.all(data.games.map(async (g) => ({
       fixtureId: g.fixtureId, campeonato: g.campeonato, casa: g.casa, visitante: g.visitante, horario: g.horario, canal: g.canal,

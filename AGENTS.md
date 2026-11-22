@@ -15,3 +15,4 @@
 - Convert provider team crests to bounded data URLs server-side with a fixed host/path allowlist so canvas exports remain safe without cross-origin dependencies.
 - Keep automatic fixture import in the banner feature; merge by provider fixture ID and retain manually entered channels and games.
 - Banner pagination is browser-only and sorts all saved/imported games into five-game pages without truncating imports; prepare PNG/ZIP blobs before download clicks to preserve browser user activation.
+- ntfut selection has no total game cap; prepare selected fixtures in sequential batches to avoid excessive concurrent crest requests while preserving every selected game.

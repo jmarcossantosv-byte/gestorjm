@@ -7,8 +7,6 @@ import { listNtfutGames, prepareNtfutGames } from "@/lib/ntfut.functions";
 import type { FootballGame } from "@/lib/football";
 import type { NtfutGame } from "@/lib/ntfut";
 
-const MAX = 10;
-
 function isoDate(offset: number) {
   const d = new Date(Date.now() + offset * 86400000);
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
@@ -40,7 +38,7 @@ export function BannerFootball({ date, onDate, onGames }: { date: string; onDate
   function toggle(id: number) {
     setSelected((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id); else if (n.size < MAX) n.add(id);
+      if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
   }
@@ -49,8 +47,13 @@ export function BannerFootball({ date, onDate, onGames }: { date: string; onDate
     if (!games) return;
     setAdding(true);
     try {
-      const r = await prepareFn({ data: { games: games.filter((g) => selected.has(g.fixtureId)) } });
-      onGames(r.games, gamesDate);
+      const chosen = games.filter((g) => selected.has(g.fixtureId));
+      const prepared: FootballGame[] = [];
+      for (let i = 0; i < chosen.length; i += 10) {
+        const r = await prepareFn({ data: { games: chosen.slice(i, i + 10) } });
+        prepared.push(...r.games);
+      }
+      onGames(prepared, gamesDate);
       setGames(null); setSelected(new Set());
     } catch { setNotice("Não foi possível adicionar os jogos. Tente novamente."); }
     finally { setAdding(false); }
@@ -74,7 +77,7 @@ export function BannerFootball({ date, onDate, onGames }: { date: string; onDate
       </div>
       {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
       {!!games?.length && <>
-        <p className="text-sm text-muted-foreground">Marque os jogos para o banner ({selected.size}/{MAX}).</p>
+        <p className="text-sm text-muted-foreground">Marque os jogos para o banner ({selected.size} selecionados).</p>
         <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
           {[...grupos].map(([camp, lista]) => <div key={camp}>
             <h3 className="mb-1 text-xs font-bold uppercase text-muted-foreground">{camp}</h3>
@@ -83,7 +86,7 @@ export function BannerFootball({ date, onDate, onGames }: { date: string; onDate
                 const marcado = selected.has(g.fixtureId);
                 return <li key={g.fixtureId}>
                   <label className="flex cursor-pointer items-center gap-3 p-2 text-sm">
-                    <Checkbox checked={marcado} disabled={!marcado && selected.size >= MAX} onCheckedChange={() => toggle(g.fixtureId)} />
+                    <Checkbox checked={marcado} onCheckedChange={() => toggle(g.fixtureId)} />
                     <span className="w-11 shrink-0 font-semibold">{g.horario}</span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">{crest(g.escudoCasaUrl, g.casa)}<span className="truncate">{g.casa}</span></span>

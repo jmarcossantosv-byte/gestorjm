@@ -12,6 +12,7 @@ export const ntfutGameSchema = z.object({
   horario: z.string(), canal: z.string(), escudoCasaUrl: z.string().nullable(), escudoVisitanteUrl: z.string().nullable(),
 });
 export type NtfutGame = z.infer<typeof ntfutGameSchema>;
+export const ntfutSelectionSchema = z.object({ games: z.array(ntfutGameSchema) });
 
 // Stable positive ID so re-importing the same match updates it instead of duplicating.
 export function gameId(date: string, casa: string, visitante: string) {

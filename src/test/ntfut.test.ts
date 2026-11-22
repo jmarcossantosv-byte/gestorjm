@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { gameId, isFootball } from "@/lib/ntfut";
+import { gameId, isFootball, ntfutSelectionSchema } from "@/lib/ntfut";
 
 describe("filtro de futebol do ntfut", () => {
+  it("aceita seleção com mais de 10 jogos sem truncar", () => {
+    const games = Array.from({ length: 21 }, (_, i) => ({ fixtureId: i + 1, campeonato: "Série A", casa: "Casa", visitante: "Visitante", horario: "18:00", canal: "", escudoCasaUrl: null, escudoVisitanteUrl: null }));
+    expect(ntfutSelectionSchema.parse({ games }).games).toHaveLength(21);
+  });
   it("mantém campeonatos de futebol", () => {
     expect(isFootball("Brasil, Brasileirão - Série A")).toBe(true);
     expect(isFootball("Europa, Liga dos Campeões")).toBe(true);
