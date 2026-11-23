@@ -28,12 +28,13 @@ export function deveAvisar(c: ClienteAviso, regra: RegraAviso, hoje: string, jaA
   return false;
 }
 
-export function preencherMensagem(modelo: string, d: { nome: string; plano: string; valor: number; data_vencimento: string | null }) {
+export function preencherMensagem(modelo: string, d: { nome: string; plano: string; valor: number; data_vencimento: string | null; link_pagamento?: string }) {
   const valor = d.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const data = d.data_vencimento ? d.data_vencimento.split("-").reverse().join("/") : "—";
   return modelo
     .replaceAll("{nome}", d.nome)
     .replaceAll("{plano}", d.plano)
     .replaceAll("{valor}", valor)
+    .replaceAll("{link_pagamento}", d.link_pagamento ?? "")
     .replaceAll("{data_vencimento}", data);
 }

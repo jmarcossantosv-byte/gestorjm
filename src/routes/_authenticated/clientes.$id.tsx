@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, Wallet, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { AppHeader, CobrarButton, FORMA_LABEL, PagamentoDialog, brl, fmtDate, type Cliente } from "@/components/painel-shared";
+import { CheckoutLinkButton } from "@/components/checkout-link";
 
 export const Route = createFileRoute("/_authenticated/clientes/$id")({
   head: () => ({
@@ -78,6 +79,7 @@ function ClientePage() {
               {cliente.observacoes && <p className="mt-2 text-sm text-muted-foreground">{cliente.observacoes}</p>}
               <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-3">
                 <CobrarButton cliente={cliente} />
+                <CheckoutLinkButton clientId={cliente.id} whatsapp={cliente.whatsapp} />
                 <Button size="sm" onClick={() => setPagar(cliente)}><Wallet /> Registrar pagamento</Button>
               </div>
             </section>

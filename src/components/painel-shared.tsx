@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Tv, LogOut, Image as ImageIcon, Loader2, MessageCircle } from "lucide-react";
+import { Tv, LogOut, Image as ImageIcon, Loader2, MessageCircle, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { getCheckoutLinks } from "@/lib/checkout.functions";
 
 export type Cliente = Database["public"]["Tables"]["clientes"]["Row"];
 export type Plano = Database["public"]["Tables"]["planos"]["Row"];
@@ -38,15 +39,16 @@ export function precisaCobrar(c: Cliente) {
   return !!c.data_vencimento && c.data_vencimento <= addDays(todayISO(), 7);
 }
 
-export function linkCobranca(c: Cliente) {
+export function linkCobranca(c: Cliente, paymentUrl?: string) {
   const numero = (c.whatsapp ?? "").replace(/\D/g, "");
   const full = numero.length <= 11 ? `55${numero}` : numero;
   const vencido = c.status === "vencido" || (!!c.data_vencimento && c.data_vencimento < todayISO());
-  const msg = `Olá, ${c.nome}! Sua assinatura de IPTV no valor de ${brl(Number(c.valor))} ${vencido ? "venceu" : "vence"} em ${fmtDate(c.data_vencimento)}. Para continuar assistindo sem interrupções, é só realizar o pagamento. Qualquer dúvida, estou à disposição!`;
+  const msg = `Olá, ${c.nome}! Sua assinatura de IPTV no valor de ${brl(Number(c.valor))} ${vencido ? "venceu" : "vence"} em ${fmtDate(c.data_vencimento)}. Para continuar assistindo sem interrupções, é só realizar o pagamento.${paymentUrl ? ` Pague com Pix: ${paymentUrl}` : ""} Qualquer dúvida, estou à disposição!`;
   return `https://wa.me/${full}?text=${encodeURIComponent(msg)}`;
 }
 
 export function CobrarButton({ cliente }: { cliente: Cliente }) {
+  const { data: links } = useQuery({ queryKey: ["checkout-links"], queryFn: () => getCheckoutLinks(), staleTime: 60000, retry: false, enabled: precisaCobrar(cliente) });
   if (!precisaCobrar(cliente)) return null;
   if (!cliente.whatsapp) {
     return (
@@ -57,7 +59,7 @@ export function CobrarButton({ cliente }: { cliente: Cliente }) {
   }
   return (
     <Button asChild variant="outline" size="sm" className="text-success">
-      <a href={linkCobranca(cliente)} target="_blank" rel="noreferrer"><MessageCircle /> Cobrar</a>
+      <a href={linkCobranca(cliente, links?.[cliente.id])} target="_blank" rel="noreferrer"><MessageCircle /> Cobrar</a>
     </Button>
   );
 }
@@ -81,11 +83,12 @@ export function AppHeader() {
           </div>
           <span className="hidden text-lg font-extrabold tracking-tight sm:inline">Painel IPTV</span>
         </div>
-        <nav className="flex items-center gap-1">
+        <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
           <Link to="/painel" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Clientes</Link>
           <Link to="/planos" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Planos</Link>
           <Link to="/cobranca" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}>Cobrança</Link>
           <Link to="/banner" title="Gerador de Banner" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}><ImageIcon className="inline h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Gerador de Banner</span></Link>
+          <Link to="/checkout" title="Checkout Pix" aria-label="Checkout Pix" className={linkCls} activeProps={{ className: "bg-accent !text-accent-foreground" }}><QrCode className="inline h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Checkout Pix</span></Link>
           <Button variant="ghost" size="sm" onClick={sair}><LogOut /> <span className="hidden sm:inline">Sair</span></Button>
         </nav>
       </div>

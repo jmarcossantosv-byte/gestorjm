@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { checkoutTokenSchema, PAYMENT_SITE, paymentSchema, pixInputSchema } from "./checkout";
+import { checkoutTokenSchema, PAYMENT_SITE, paymentSchema, pixInputSchema, matchesOrder } from "./checkout";
 
 export const getMercadoPagoConfig = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -37,6 +37,13 @@ export const removeMercadoPagoConfig = createServerFn({ method: "POST" }).middle
   const { error } = await supabaseAdmin.from("mercadopago_credentials").delete().eq("user_id", context.userId);
   if (error) throw new Error("Não foi possível remover sua chave.");
   return { configured: false };
+});
+
+export const getCheckoutLinks = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await db.from("checkout_orders").select("cliente_id,access_token").eq("user_id", context.userId).eq("status", "pending").gt("link_expires_at", new Date().toISOString());
+  if (error) throw new Error("Não foi possível consultar os links de pagamento.");
+  return Object.fromEntries((data ?? []).map((o) => [o.cliente_id, `${PAYMENT_SITE}/pagar/${o.access_token}`]));
 });
 
 export const createCheckoutLink = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])
@@ -111,6 +118,7 @@ export const createPublicPix = createServerFn({ method: "POST" })
           external_reference: order.id, payer: { email: data.email }, date_of_expiration: expirationBrasilia,
           notification_url: `https://project--2e634afc-5c22-4d60-a5da-84b3fb075029${import.meta.env.DEV ? "-dev" : ""}.lovable.app/api/public/mercadopago-webhook?order=${order.id}` },
       }));
+      if (!matchesOrder(payment, order)) throw new Error("O Pix retornado não corresponde à cobrança. Entre em contato com o administrador.");
       const qr = payment.point_of_interaction?.transaction_data;
       if (!qr?.qr_code || !qr.qr_code_base64) throw new Error("Mercado Pago não retornou o código Pix. Tente novamente em um minuto.");
       const { error: saveError } = await db.from("checkout_orders").update({ mp_payment_id: payment.id, qr_code: qr.qr_code,

@@ -6,6 +6,8 @@ const base: ClienteAviso = { id: "1", nome: "Ana", valor: 35, data_vencimento: "
 const hoje = "2026-10-17";
 
 describe("cobrança automática", () => {
+  it("preenche o link individual de pagamento, sem alterar a regra de aviso", () =>
+    expect(preencherMensagem("Pague: {link_pagamento}", { nome: "Ana", plano: "Mensal", valor: 35, data_vencimento: "2026-10-19", link_pagamento: "https://example.com/pagar/individual" })).toBe("Pague: https://example.com/pagar/individual"));
   it("avisa 2 dias antes do vencimento", () => expect(deveAvisar(base, regra, hoje)).toBe(true));
   it("avisa no dia do vencimento", () => expect(deveAvisar({ ...base, data_vencimento: hoje }, regra, hoje)).toBe(true));
   it("não avisa vencidos por padrão", () => expect(deveAvisar({ ...base, data_vencimento: "2026-10-10" }, regra, hoje)).toBe(false));

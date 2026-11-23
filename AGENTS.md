@@ -16,3 +16,5 @@
 - Keep automatic fixture import in the banner feature; merge by provider fixture ID and retain manually entered channels and games.
 - Banner pagination is browser-only and sorts all saved/imported games into five-game pages without truncating imports; prepare PNG/ZIP blobs before download clicks to preserve browser user activation.
 - ntfut selection has no total game cap; prepare selected fixtures in sequential batches to avoid excessive concurrent crest requests while preserving every selected game.
+- Payment credentials are per-user, AES-GCM encrypted with user-bound additional data and stored in server-only RLS tables; authenticated handlers scope access to their caller, while public checkout handlers authorize by an unguessable invoice token.
+- Pix amounts and duration come from invoice snapshots; confirm only provider-fetched reference, amount, currency and collector matches through a service-only transactional RPC so concurrent notifications cannot renew twice. Timeout retries retain the invoice attempt's idempotency key.

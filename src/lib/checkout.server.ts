@@ -43,6 +43,7 @@ export async function orderByToken(token: string) {
 export async function confirmFetchedPayment(order: CheckoutOrder, payment: ProviderPayment) {
   if (!matchesOrder(payment, order)) return false;
   if (!["approved", "refunded", "charged_back"].includes(payment.status)) return false;
+  if (payment.status === "approved" && !payment.date_approved) return false;
   const { data, error } = await db.rpc("confirm_checkout_payment", {
     _order_id: order.id, _payment_id: payment.id, _amount: payment.transaction_amount,
     _currency: payment.currency_id, _collector_id: payment.collector_id, _status: payment.status,

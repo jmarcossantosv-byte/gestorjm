@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AppHeader, Field, fmtDate, todayISO } from "@/components/painel-shared";
 import { MENSAGEM_PADRAO, deveAvisar, preencherMensagem } from "@/lib/cobranca";
+import { getCheckoutLinks } from "@/lib/checkout.functions";
 
 export const Route = createFileRoute("/_authenticated/cobranca")({
   head: () => ({
@@ -34,6 +35,7 @@ function Cobranca() {
   const [diasAntes, setDiasAntes] = useState("2");
   const [noDia, setNoDia] = useState(true);
   const [vencidos, setVencidos] = useState(false);
+  const { data: paymentLinks = {} } = useQuery({ queryKey: ["checkout-links"], queryFn: () => getCheckoutLinks(), staleTime: 60000 });
 
   const { data: config, isLoading } = useQuery({
     queryKey: ["cobranca_config"],
@@ -73,17 +75,18 @@ function Cobranca() {
       .filter((c) => deveAvisar({ ...c, valor: Number(c.valor) }, regra, hoje, ja))
       .map((c) => ({
         c,
-        texto: preencherMensagem(mensagem, { nome: c.nome, plano: c.planos?.nome ?? c.plano ?? "—", valor: Number(c.valor), data_vencimento: c.data_vencimento }),
+        texto: preencherMensagem(mensagem, { nome: c.nome, plano: c.planos?.nome ?? c.plano ?? "—", valor: Number(c.valor), data_vencimento: c.data_vencimento, link_pagamento: paymentLinks[c.id] ?? "" }),
       }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, avisadosHoje, mensagem, diasAntes, noDia, vencidos, hoje]);
+  }, [clientes, avisadosHoje, mensagem, diasAntes, noDia, vencidos, hoje, paymentLinks]);
 
   async function salvar() {
     if (!mensagem.trim()) { toast.error("Escreva a mensagem"); return; }
     setSaving(true);
     const { data: u } = await supabase.auth.getUser();
+    if (!u.user) { setSaving(false); toast.error("Entre novamente para salvar."); return; }
     const { error } = await supabase.from("cobranca_config").upsert({
-      user_id: u.user!.id, ativo, mensagem, dias_antes: regra.dias_antes, avisar_no_dia: noDia, avisar_vencidos: vencidos,
+      user_id: u.user.id, ativo, mensagem, dias_antes: regra.dias_antes, avisar_no_dia: noDia, avisar_vencidos: vencidos,
     });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
@@ -108,7 +111,7 @@ function Cobranca() {
             <Field label="Mensagem">
               <Textarea rows={5} value={mensagem} onChange={(e) => setMensagem(e.target.value)} />
             </Field>
-            <p className="text-xs text-muted-foreground">Variáveis: {"{nome}"}, {"{plano}"}, {"{valor}"}, {"{data_vencimento}"}</p>
+            <p className="text-xs text-muted-foreground">Variáveis: {"{nome}"}, {"{plano}"}, {"{valor}"}, {"{data_vencimento}"}, {"{link_pagamento}"}</p>
             <Field label="Avisar quantos dias antes do vencimento">
               <Input type="number" min={0} value={diasAntes} onChange={(e) => setDiasAntes(e.target.value)} className="w-28" />
             </Field>

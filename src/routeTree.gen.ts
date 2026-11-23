@@ -13,9 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedBannerRouteImport } from './routes/_authenticated/banner'
+import { Route as AuthenticatedCheckoutRouteImport } from './routes/_authenticated/checkout'
 import { Route as AuthenticatedCobrancaRouteImport } from './routes/_authenticated/cobranca'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated/planos'
+import { Route as PagarTokenRouteImport } from './routes/pagar.$token'
 import { Route as AuthenticatedClientesIdRouteImport } from './routes/_authenticated/clientes.$id'
 import { Route as ApiPublicMercadopagoWebhookRouteImport } from './routes/api/public/mercadopago-webhook'
 
@@ -38,6 +40,11 @@ const AuthenticatedBannerRoute = AuthenticatedBannerRouteImport.update({
   path: '/banner',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCheckoutRoute = AuthenticatedCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCobrancaRoute = AuthenticatedCobrancaRouteImport.update({
   id: '/cobranca',
   path: '/cobranca',
@@ -52,6 +59,11 @@ const AuthenticatedPlanosRoute = AuthenticatedPlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const PagarTokenRoute = PagarTokenRouteImport.update({
+  id: '/pagar/$token',
+  path: '/pagar/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedClientesIdRoute = AuthenticatedClientesIdRouteImport.update({
   id: '/clientes/$id',
@@ -69,9 +81,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/banner': typeof AuthenticatedBannerRoute
+  '/checkout': typeof AuthenticatedCheckoutRoute
   '/cobranca': typeof AuthenticatedCobrancaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/planos': typeof AuthenticatedPlanosRoute
+  '/pagar/$token': typeof PagarTokenRoute
   '/clientes/$id': typeof AuthenticatedClientesIdRoute
   '/api/public/mercadopago-webhook': typeof ApiPublicMercadopagoWebhookRoute
 }
@@ -79,9 +93,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/banner': typeof AuthenticatedBannerRoute
+  '/checkout': typeof AuthenticatedCheckoutRoute
   '/cobranca': typeof AuthenticatedCobrancaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/planos': typeof AuthenticatedPlanosRoute
+  '/pagar/$token': typeof PagarTokenRoute
   '/clientes/$id': typeof AuthenticatedClientesIdRoute
   '/api/public/mercadopago-webhook': typeof ApiPublicMercadopagoWebhookRoute
 }
@@ -91,9 +107,11 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/banner': typeof AuthenticatedBannerRoute
+  '/_authenticated/checkout': typeof AuthenticatedCheckoutRoute
   '/_authenticated/cobranca': typeof AuthenticatedCobrancaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
+  '/pagar/$token': typeof PagarTokenRoute
   '/_authenticated/clientes/$id': typeof AuthenticatedClientesIdRoute
   '/api/public/mercadopago-webhook': typeof ApiPublicMercadopagoWebhookRoute
 }
@@ -103,9 +121,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/banner'
+    | '/checkout'
     | '/cobranca'
     | '/painel'
     | '/planos'
+    | '/pagar/$token'
     | '/clientes/$id'
     | '/api/public/mercadopago-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -113,9 +133,11 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/banner'
+    | '/checkout'
     | '/cobranca'
     | '/painel'
     | '/planos'
+    | '/pagar/$token'
     | '/clientes/$id'
     | '/api/public/mercadopago-webhook'
   id:
@@ -124,9 +146,11 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/banner'
+    | '/_authenticated/checkout'
     | '/_authenticated/cobranca'
     | '/_authenticated/painel'
     | '/_authenticated/planos'
+    | '/pagar/$token'
     | '/_authenticated/clientes/$id'
     | '/api/public/mercadopago-webhook'
   fileRoutesById: FileRoutesById
@@ -135,6 +159,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PagarTokenRoute: typeof PagarTokenRoute
   ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
 }
 
@@ -168,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBannerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/checkout': {
+      id: '/_authenticated/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof AuthenticatedCheckoutRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/cobranca': {
       id: '/_authenticated/cobranca'
       path: '/cobranca'
@@ -189,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlanosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/pagar/$token': {
+      id: '/pagar/$token'
+      path: '/pagar/$token'
+      fullPath: '/pagar/$token'
+      preLoaderRoute: typeof PagarTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/clientes/$id': {
       id: '/_authenticated/clientes/$id'
       path: '/clientes/$id'
@@ -208,6 +247,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBannerRoute: typeof AuthenticatedBannerRoute
+  AuthenticatedCheckoutRoute: typeof AuthenticatedCheckoutRoute
   AuthenticatedCobrancaRoute: typeof AuthenticatedCobrancaRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedPlanosRoute: typeof AuthenticatedPlanosRoute
@@ -216,6 +256,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBannerRoute: AuthenticatedBannerRoute,
+  AuthenticatedCheckoutRoute: AuthenticatedCheckoutRoute,
   AuthenticatedCobrancaRoute: AuthenticatedCobrancaRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedPlanosRoute: AuthenticatedPlanosRoute,
@@ -229,6 +270,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PagarTokenRoute: PagarTokenRoute,
   ApiPublicMercadopagoWebhookRoute: ApiPublicMercadopagoWebhookRoute,
 }
 export const routeTree = rootRouteImport
